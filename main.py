@@ -32,7 +32,7 @@ def start(message):
 
     if not result_id:
         cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-        cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta)")
+        cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         db.commit()
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
