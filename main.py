@@ -136,7 +136,7 @@ def bot_message(message):
 
             if not result_id:
                 cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta)")
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
 
             bot.send_message(message.from_user.id, "Таблица лидеров среди людей которые больше всего выйграли данного бота)")
@@ -556,6 +556,7 @@ def bot_message(message):
 
             if not result_id:
                 cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
                    
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
@@ -581,6 +582,7 @@ def bot_message(message):
 
             if not result_id:
                 cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
@@ -779,6 +781,7 @@ def bot_message(message):
 
             if not result_id:
                 cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
@@ -807,6 +810,7 @@ def bot_message(message):
 
             if not result_id:
                 cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
@@ -837,6 +841,13 @@ def bot_message(message):
             bot.register_next_step_handler(message, moneta)     
         
         elif message.text == "Да 👍":
+            id = message.from_user.id
+            name = message.from_user.first_name
+            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_moneta + 1 WHERE id = {id}")
+            db.commit()
+
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
             item1 = types.KeyboardButton("Орел")
             item2 = types.KeyboardButton("Решка")
@@ -877,7 +888,9 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()     
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_darts + 1 WHERE id = {id}")
+            db.commit()
 
             ball = bot.send_dice(message.chat.id, '🎯')
             sleep(5)
@@ -923,6 +936,7 @@ def bot_message(message):
             if ball.dice.value > ball_two.dice.value:
                 id = message.from_user.id
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score_darts + 1 WHERE id = {id}")
                 db.commit()
 
                 bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
@@ -956,6 +970,8 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_basket + 1 WHERE id = {id}")
             db.commit()
 
             ball = bot.send_dice(message.from_user.id, '🏀')
@@ -966,8 +982,8 @@ def bot_message(message):
                 bot.send_message(message.from_user.id, "Игрок " + str(name) + " попал в кольцо, и он получает оценку " + str(ball.dice.value))
                 sleep(1.5)
             else:
-                bot.send_message(message.from_user.id, "Игрок " + str(name) + " промахнулся")        
-                
+                bot.send_message(message.from_user.id, "Игрок " + str(name) + " промахнулся")   
+
             bot.send_message(message.from_user.id, "🏀 Кидает мяч БОТ")
             sleep(1.5)
             ball_two = bot.send_dice(message.chat.id, '🏀')
@@ -988,6 +1004,7 @@ def bot_message(message):
                     if ball.dice.value > ball_two.dice.value:
                         id = message.from_user.id
                         cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                        cursor.execute(f"UPDATE date SET score_basket + 1 WHERE id = {id}")
                         db.commit()
 
                         bot.send_message(message.from_user.id, "*Победил - *" + str(name), parse_mode = "Markdown")
@@ -1001,6 +1018,7 @@ def bot_message(message):
                 else:
                     id = message.from_user.id
                     cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                    cursor.execute(f"UPDATE date SET score_basket + 1 WHERE id = {id}")
                     db.commit()
 
                     bot.send_message(message.from_user.id, "*Победил - *" + str(name), parse_mode="Markdown")
@@ -1038,6 +1056,8 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_football + 1 WHERE id = {id}")
             db.commit()
 
             ball = bot.send_dice(message.chat.id, '⚽️')
@@ -1073,6 +1093,7 @@ def bot_message(message):
                         id = message.from_user.id
                         name = message.from_user.first_name
                         cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                        cursor.execute(f"UPDATE date SET score_football + 1 WHERE id = {id}")
                         db.commit()
 
                         bot.send_message(message.chat.id, "*Победил - *" + str(name) , parse_mode = "Markdown")
@@ -1087,6 +1108,7 @@ def bot_message(message):
                     id = message.from_user.id
                     name = message.from_user.first_name
                     cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                    cursor.execute(f"UPDATE date SET score_football + 1 WHERE id = {id}")
                     db.commit()
 
                     bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
@@ -1124,6 +1146,8 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_bowling + 1 WHERE id = {id}")
             db.commit()
 
             ball = bot.send_dice(message.chat.id, '🎳')
@@ -1171,6 +1195,7 @@ def bot_message(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score_bowling + 1 WHERE id = {id}")
                 db.commit()
 
                 bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
@@ -1204,6 +1229,8 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_kosti + 1 WHERE id = {id}")
             db.commit()
 
             cube = bot.send_dice(message.chat.id)
@@ -1225,6 +1252,7 @@ def bot_message(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score_kosti + 1 WHERE id = {id}")
                 db.commit()
 
                 bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
@@ -1256,6 +1284,8 @@ def bot_message(message):
         elif message.text == "Да)":
             id = message.from_user.id
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            cursor.execute(f"UPDATE date SET games_number + 1 WHERE id = {id}")
             db.commit()
 
             global counter
@@ -1335,66 +1365,63 @@ def bot_message(message):
 # ОРЕЛ & РЕШКА
 
 def moneta(message):
-	#db = sqlite3.connect("glinsky.db")
-	#sql = db.cursor()
-#
-	#user_id = message.from_user.id
-#
-	#sql.execute(f"UPDATE base SET games = games + 1 WHERE user_id = '{user_id}'")
-	#db.commit()
+    id = message.from_user.id
+    name = message.from_user.first_name
+    cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
+    cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+    cursor.execute(f"UPDATE date SET games_moneta + 1 WHERE id = {id}")
+    db.commit()
 
 
-	moneta = ["Орел", "Решка"]
-	moneta_random = random.choice(moneta)
+    moneta = ["Орел", "Решка"]
+    moneta_random = random.choice(moneta)
 
-	moneta_user = message.text
+    moneta_user = message.text
 
-	stick = open("image/AnimatedSticker.tgs", "rb")
-	bot.send_sticker(message.chat.id, stick)
-	sleep(3)
-	bot.send_message(message.chat.id, str(moneta_random))
-	sleep(1)
-	
-	if moneta_random == moneta_user:
-		#db = sqlite3.connect("glinsky.db")
-		#sql = db.cursor()
-		#user_id = message.from_user.id
-		#sql.execute(f"UPDATE base SET score = score + 1 WHERE user_id = '{user_id}'")
-		#db.commit()
-	
-	
-		bot.send_message(message.chat.id, "Вы победили!")
-		sleep(2)
-		markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-		item1 = types.KeyboardButton("Да 👍")
-		item2 = types.KeyboardButton("Неа ✋")
-		markup.row(item1)
-		markup.row(item2)
-		bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)
-	else:
-		bot.send_message(message.chat.id, "Вы проиграли!")
-		sleep(2)
-		markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-		item1 = types.KeyboardButton("Да 👍")
-		item2 = types.KeyboardButton("Неа ✋")
-		markup.row(item1)
-		markup.row(item2)
-		bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)
+    stick = open("image/AnimatedSticker.tgs", "rb")
+    bot.send_sticker(message.chat.id, stick)
+    sleep(3)
+    bot.send_message(message.chat.id, str(moneta_random))
+    sleep(1)
+        
+    if moneta_random == moneta_user:
+        id = message.from_user.id
+        name = message.from_user.first_name
+        cursor.execute(f"UPDATE date SET score_moneta + 1 WHERE id = {id}")
+        db.commit()
+        
+        bot.send_message(message.chat.id, "Вы победили!")
+        sleep(2)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("Да 👍")
+        item2 = types.KeyboardButton("Неа ✋")
+        markup.row(item1)
+        markup.row(item2)
+        bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)
+    else:
+        bot.send_message(message.chat.id, "Вы проиграли!")
+        sleep(2)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("Да 👍")
+        item2 = types.KeyboardButton("Неа ✋")
+        markup.row(item1)
+        markup.row(item2)
+        bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)
 
 
 
 def dollar_rubl(message):
-	dollar = 685468974538976564
-	while dollar == 685468974538976564:
-		try:
-			dollar = int(message.text)
-			result = int(dollar) * float(price_usd)
-			bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *₽*", parse_mode = "Markdown")
-		except Exception:
-			bot.send_message(message.chat.id, "Нужно вводить цифрами.")
-			break
-	if dollar == 685468974538976564:
-		bot.register_next_step_handler(message, dollar_rubl)
+    dollar = 685468974538976564
+    while dollar == 685468974538976564:
+        try:
+            dollar = int(message.text)
+            result = int(dollar) * float(price_usd)
+            bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *₽*", parse_mode = "Markdown")
+        except Exception:
+            bot.send_message(message.chat.id, "Нужно вводить цифрами.")
+            break
+    if dollar == 685468974538976564:
+        bot.register_next_step_handler(message, dollar_rubl)
 
 def rubl_dollar(message):
 	rubl = 685468974538976564
@@ -1480,6 +1507,9 @@ def number(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score_number + 1 WHERE id = {id}")
+                db.commit()
+                
                 db.commit()
             
             
