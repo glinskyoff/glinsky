@@ -152,9 +152,9 @@ def bot_message(message):
             bot.send_message(message.from_user.id, "Таблица лидеров среди людей которые больше всего выйграли данного бота)")
             bot.send_message(message.from_user.id, "Игр | Побед | Участник")
 
-            sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
-            cursor.execute(sortirovka)
-            sort = cursor.fetchall()
+            #sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
+            cursor.execute(f"SELECT * FROM users ORDER BY score DESC")
+            sort = cursor.fetchone()
 
             for index, row in enumerate(sort, start = 1):
                 #bot.send_message(message.from_user.id, f"{index})     {row[4]}  |  {row[3]}  | {row[2]} - (@{row[1]})")
