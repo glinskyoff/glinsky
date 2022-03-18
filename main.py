@@ -832,15 +832,6 @@ def bot_message(message):
         
         # ОРЕЛ & РЕШКА      
         elif message.text == "🟡 Орел & Решка":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Орел")
-            item2 = types.KeyboardButton("Решка")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Орел или Решка ?" , reply_markup = markup)			
-            bot.register_next_step_handler(message, moneta)     
-        
-        elif message.text == "Да 👍":
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
@@ -854,25 +845,7 @@ def bot_message(message):
             markup.row(item1)
             markup.row(item2)
             bot.send_message(message.chat.id, "Орел или Решка ?" , reply_markup = markup)			
-            bot.register_next_step_handler(message, moneta)     
-        
-        elif message.text == "Неа ✋":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🧾 Таблица лидеров")
-            item2 = types.KeyboardButton("🎰 Угадай число")
-            item3 = types.KeyboardButton("🎲 Игра *Кости*")
-            item4 = types.KeyboardButton("🎳 Боулинг")
-            item5 = types.KeyboardButton("⚽️ Футбол")
-            item6 = types.KeyboardButton("🏀 Баскетбол")
-            item7 = types.KeyboardButton("🟡 Орел & Решка")
-            item8 = types.KeyboardButton("🎯 Дартс")
-            item9 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1)
-            markup.row(item2) 
-            markup.row(item3, item4, item5)
-            markup.row(item6, item7, item8)
-            markup.row(item9)
-            bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)       
+            bot.register_next_step_handler(message, moneta)      
         
         # ДАРТС     
         elif message.text == "🎯 Дартс":
