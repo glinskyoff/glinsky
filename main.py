@@ -183,20 +183,25 @@ def bot_message(message):
             cursor.execute(sortirovka)
             sort = cursor.fetchall()
 
-            all_games = cursor.execute(f"SELECT games FROM date WHERE id = {id}")
-            result_all_games = cursor.fetchone(all_games)
-            all_score = cursor.execute(f"SELECT score FROM date WHERE id = {id}")
-            result_all_score = cursor.fetchone(all_score)
+            #all_games = cursor.execute(f"SELECT games FROM date WHERE id = {id}")
+            #result_all_games = cursor.fetchone(all_games)
+            #all_score = cursor.execute(f"SELECT score FROM date WHERE id = {id}")
+            #result_all_score = cursor.fetchone(all_score)
+#
+            #darts_games = cursor.execute(f"SELECT games_darts FROM date WHERE id = {id}")
+            #result_darts_games = cursor.fetchone(darts_games)
+            #darts_score = cursor.execute(f"SELECT games_score FROM date WHERE id = {id}")
+            #result_darts_score = cursor.fetchone(darts_score)
+#
+            #bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
+            #bot.send_message(message.from_user.id, f"Общее  -  {result_all_games}  -  {result_all_score}")
+            #bot.send_message(message.from_user.id, f"🎯 Дартс  -  {result_darts_games}  -  {result_darts_score}")
 
-            darts_games = cursor.execute(f"SELECT games_darts FROM date WHERE id = {id}")
-            result_darts_games = cursor.fetchone(darts_games)
-            darts_score = cursor.execute(f"SELECT games_score FROM date WHERE id = {id}")
-            result_darts_score = cursor.fetchone(darts_score)
+            date = cursor.execute(f"SELECT * FROM date WHERE id = {id}")
+            result_date = cursor.fetchall()
 
-            bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
-            bot.send_message(message.from_user.id, f"Общее  -  {result_all_games}  -  {result_all_score}")
-            bot.send_message(message.from_user.id, f"🎯 Дартс  -  {result_darts_games}  -  {result_darts_score}")
-
+            for row in enumerate(result_date):
+                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[4]}")
 
 
 
