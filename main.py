@@ -127,7 +127,7 @@ def bot_message(message):
 		# ТАБЛИЦА ЛИДЕРОВ
 
         elif message.text == "🧾 Таблица лидеров":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
             item1 = types.KeyboardButton("🧾 Показать таблица лидеров")
             item2 = types.KeyboardButton("🧾 Подробная статистика игр")
             item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
@@ -183,12 +183,28 @@ def bot_message(message):
             cursor.execute(sortirovka)
             sort = cursor.fetchall()
 
-            for index, row in enumerate(sort, start = 1):
-                bot.send_message(message.from_user.id, f"{index})     {row[4]}  |  {row[3]}  | {row[2]} - (@{row[1]})")
-                
-                limit = 8
-                if index == limit:
-                    break
+            all_games = cursor.execute(f"SELECT games FROM date WHERE id = {id}")
+            all_score = cursor.execute(f"SELECT score FROM date WHERE id = {id}")
+
+            darts_games = cursor.execute(f"SELECT games_darts FROM date WHERE id = {id}")
+            darts_score = cursor.execute(f"SELECT games_score FROM date WHERE id = {id}")
+
+            bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
+            bot.send_message(message.from_user.id, f"Общее  -  {all_games}  -  {all_score}")
+            bot.send_message(message.from_user.id, f"🎯 Дартс  -  {darts_games}  -  {darts_score}")
+
+
+
+
+            item1 = types.KeyboardButton("🧾 Таблица лидеров")
+            item2 = types.KeyboardButton("🎰 Угадай число")
+            item3 = types.KeyboardButton("🎲 Игра *Кости*")
+            item4 = types.KeyboardButton("🎳 Боулинг")
+            item5 = types.KeyboardButton("⚽️ Футбол")
+            item6 = types.KeyboardButton("🏀 Баскетбол")
+            item7 = types.KeyboardButton("🟡 Орел & Решка")
+            item8 = types.KeyboardButton("🎯 Дартс")
+            item9 = types.KeyboardButton("🔙 Вернуться в Функции")
 
 		# ГОРОСКОП
 
