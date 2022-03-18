@@ -158,7 +158,7 @@ def bot_message(message):
 
             for index, row in enumerate(sort, start = 1):
                 #bot.send_message(message.from_user.id, f"{index})     {row[4]}  |  {row[3]}  | {row[2]} - (@{row[1]})")
-                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[4]}  |  {row[3]}")
+                bot.send_message(message.from_user.id, f"{index})  {row[2]}  |  {row[4]}  |  {row[3]}")
                 
                 limit = 8
                 if index == limit:
