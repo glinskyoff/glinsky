@@ -184,27 +184,31 @@ def bot_message(message):
             sort = cursor.fetchall()
 
             all_games = cursor.execute(f"SELECT games FROM date WHERE id = {id}")
+            result_all_games = cursor.fetchone(all_games)
             all_score = cursor.execute(f"SELECT score FROM date WHERE id = {id}")
+            result_all_score = cursor.fetchone(all_score)
 
             darts_games = cursor.execute(f"SELECT games_darts FROM date WHERE id = {id}")
+            result_darts_games = cursor.fetchone(darts_games)
             darts_score = cursor.execute(f"SELECT games_score FROM date WHERE id = {id}")
+            result_darts_score = cursor.fetchone(darts_score)
 
             bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
-            bot.send_message(message.from_user.id, f"Общее  -  {all_games}  -  {all_score}")
-            bot.send_message(message.from_user.id, f"🎯 Дартс  -  {darts_games}  -  {darts_score}")
+            bot.send_message(message.from_user.id, f"Общее  -  {result_all_games}  -  {result_all_score}")
+            bot.send_message(message.from_user.id, f"🎯 Дартс  -  {result_darts_games}  -  {result_darts_score}")
 
 
 
 
-            item1 = types.KeyboardButton("🧾 Таблица лидеров")
-            item2 = types.KeyboardButton("🎰 Угадай число")
-            item3 = types.KeyboardButton("🎲 Игра *Кости*")
-            item4 = types.KeyboardButton("🎳 Боулинг")
-            item5 = types.KeyboardButton("⚽️ Футбол")
-            item6 = types.KeyboardButton("🏀 Баскетбол")
-            item7 = types.KeyboardButton("🟡 Орел & Решка")
-            item8 = types.KeyboardButton("🎯 Дартс")
-            item9 = types.KeyboardButton("🔙 Вернуться в Функции")
+            #item1 = types.KeyboardButton("🧾 Таблица лидеров")
+            #item2 = types.KeyboardButton("🎰 Угадай число")
+            #item3 = types.KeyboardButton("🎲 Игра *Кости*")
+            #item4 = types.KeyboardButton("🎳 Боулинг")
+            #item5 = types.KeyboardButton("⚽️ Футбол")
+            #item6 = types.KeyboardButton("🏀 Баскетбол")
+            #item7 = types.KeyboardButton("🟡 Орел & Решка")
+            #item8 = types.KeyboardButton("🎯 Дартс")
+            #item9 = types.KeyboardButton("🔙 Вернуться в Функции")
 
 		# ГОРОСКОП
 
