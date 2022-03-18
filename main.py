@@ -127,6 +127,43 @@ def bot_message(message):
 		# ТАБЛИЦА ЛИДЕРОВ
 
         elif message.text == "🧾 Таблица лидеров":
+            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+            item1 = types.KeyboardButton("🧾 Показать таблица лидеров")
+            item2 = types.KeyboardButton("🧾 Подробная статистика игр")
+            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+            markup.row(item1)
+            markup.row(item2)
+            markup.row(item3)
+            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
+
+        elif message.text == "🧾 Показать таблица лидеров":
+
+            id = message.from_user.id
+            username = message.from_user.username
+            name = message.from_user.first_name
+            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
+            result_id = cursor.fetchone()
+
+            if not result_id:
+                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
+                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+                db.commit()
+
+            bot.send_message(message.from_user.id, "Таблица лидеров среди людей которые больше всего выйграли данного бота)")
+            bot.send_message(message.from_user.id, "Игр | Побед | Участник")
+
+            sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
+            cursor.execute(sortirovka)
+            sort = cursor.fetchall()
+
+            for index, row in enumerate(sort, start = 1):
+                bot.send_message(message.from_user.id, f"{index})     {row[4]}  |  {row[3]}  | {row[2]} - (@{row[1]})")
+                
+                limit = 8
+                if index == limit:
+                    break
+
+        elif message.text == "🧾 Подробная статистика игр":
 
             id = message.from_user.id
             username = message.from_user.username
