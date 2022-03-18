@@ -940,6 +940,7 @@ def bot_message(message):
             if ball.dice.value > ball_two.dice.value:
                 id = message.from_user.id
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                 cursor.execute(f"UPDATE date SET score_darts = score_darts + 1 WHERE id = {id}")
                 db.commit()
 
@@ -1013,6 +1014,7 @@ def bot_message(message):
                     if ball.dice.value > ball_two.dice.value:
                         id = message.from_user.id
                         cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                         cursor.execute(f"UPDATE date SET score_basket = score_basket + 1 WHERE id = {id}")
                         db.commit()
 
@@ -1027,6 +1029,7 @@ def bot_message(message):
                 else:
                     id = message.from_user.id
                     cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                    cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                     cursor.execute(f"UPDATE date SET score_basket = score_basket + 1 WHERE id = {id}")
                     db.commit()
 
@@ -1106,6 +1109,7 @@ def bot_message(message):
                         id = message.from_user.id
                         name = message.from_user.first_name
                         cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                         cursor.execute(f"UPDATE date SET score_football = score_football + 1 WHERE id = {id}")
                         db.commit()
 
@@ -1121,6 +1125,7 @@ def bot_message(message):
                     id = message.from_user.id
                     name = message.from_user.first_name
                     cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                    cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                     cursor.execute(f"UPDATE date SET score_football = score_football + 1 WHERE id = {id}")
                     db.commit()
 
@@ -1212,6 +1217,7 @@ def bot_message(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                 cursor.execute(f"UPDATE date SET score_bowling = score_bowling + 1 WHERE id = {id}")
                 db.commit()
 
@@ -1273,6 +1279,7 @@ def bot_message(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                 cursor.execute(f"UPDATE date SET score_kosti = score_kosti + 1 WHERE id = {id}")
                 db.commit()
 
@@ -1417,6 +1424,7 @@ def moneta(message):
         id = message.from_user.id
         name = message.from_user.first_name
         cursor.execute(f"UPDATE date SET score_moneta = score_moneta + 1 WHERE id = {id}")
+        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
         db.commit()
         
         bot.send_message(message.chat.id, "Вы победили!")
@@ -1536,6 +1544,7 @@ def number(message):
                 id = message.from_user.id
                 name = message.from_user.first_name
                 cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
+                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
                 cursor.execute(f"UPDATE date SET score_number = score_number + 1 WHERE id = {id}")
                 db.commit()
             
