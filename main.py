@@ -200,8 +200,8 @@ def bot_message(message):
             date = cursor.execute(f"SELECT * FROM date WHERE id = {id}")
             result_date = cursor.fetchall()
 
-            for row in enumerate(result_date):
-                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[4]}")
+            for row in result_date:
+                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[0]}")
 
 
 
