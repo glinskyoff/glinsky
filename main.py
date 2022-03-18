@@ -176,34 +176,27 @@ def bot_message(message):
                 cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
                 db.commit()
 
-            bot.send_message(message.from_user.id, "Таблица лидеров среди людей которые больше всего выйграли данного бота)")
-            bot.send_message(message.from_user.id, "Игр | Побед | Участник")
-
-            sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
-            cursor.execute(sortirovka)
-            sort = cursor.fetchall()
-
-            #all_games = cursor.execute(f"SELECT games FROM date WHERE id = {id}")
-            #result_all_games = cursor.fetchone(all_games)
-            #all_score = cursor.execute(f"SELECT score FROM date WHERE id = {id}")
-            #result_all_score = cursor.fetchone(all_score)
-#
-            #darts_games = cursor.execute(f"SELECT games_darts FROM date WHERE id = {id}")
-            #result_darts_games = cursor.fetchone(darts_games)
-            #darts_score = cursor.execute(f"SELECT games_score FROM date WHERE id = {id}")
-            #result_darts_score = cursor.fetchone(darts_score)
-#
-            #bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
-            #bot.send_message(message.from_user.id, f"Общее  -  {result_all_games}  -  {result_all_score}")
-            #bot.send_message(message.from_user.id, f"🎯 Дартс  -  {result_darts_games}  -  {result_darts_score}")
+            bot.send_message(message.from_user.id, "Подробная статистика игр")
 
             date = cursor.execute(f"SELECT * FROM date WHERE id = {id}")
             result_date = cursor.fetchall()
 
+            #sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
+            #cursor.execute(sortirovka)
+            #sort = cursor.fetchall()
+
+
             for row in result_date:
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
-                bot.send_message(message.from_user.id, f"Общее  -  {row[1]}  -  {row[2]}")
+                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}")
                 bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]}")
+                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]}")
+                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]}")
+                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]}")
+                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]}")
+                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]}")
+                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]}")
+
 
 
 
