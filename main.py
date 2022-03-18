@@ -970,9 +970,14 @@ def bot_message(message):
             id = message.from_user.id
             name = message.from_user.first_name
             cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            cursor.execute(f"UPDATE date SET games_basket + 1 WHERE id = {id}")
             db.commit()
+
+            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
+            db.commit()
+
+            cursor.execute(f"UPDATE date SET games_basket = games_basket + 1 WHERE id = {id}")
+            db.commit()
+
 
             ball = bot.send_dice(message.from_user.id, '🏀')
             sleep(5)
