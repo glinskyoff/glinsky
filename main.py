@@ -831,7 +831,7 @@ def bot_message(message):
             bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)       
         
         # ОРЕЛ & РЕШКА      
-        elif message.text == "🟡 Орел & Решка":
+        elif message.text == "🟡 Орел & Решка": 
             markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
             item1 = types.KeyboardButton("Орел")
             item2 = types.KeyboardButton("Решка")
@@ -1367,13 +1367,12 @@ def moneta(message):
     name = message.from_user.first_name
     cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
     db.commit()
-
+    
     cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
     db.commit()
-
+    
     cursor.execute(f"UPDATE date SET games_moneta = games_moneta + 1 WHERE id = {id}")
     db.commit()
-
 
     moneta = ["Орел", "Решка"]
     moneta_random = random.choice(moneta)
