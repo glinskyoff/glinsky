@@ -185,11 +185,11 @@ def bot_message(message):
             result_date = cursor.fetchall()
 
             for row in result_date:
-                all_result = row[2] // row[1] * 100
-                all_darts = row[4] // row[3] * 100
+                all_result = row[2] / row[1] * 100
+                all_darts = row[4] / row[3] * 100
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед")
                 bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result}%")
-                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]}")
+                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]} -  {all_darts}")
                 bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]}")
                 bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]}")
                 bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]}")
