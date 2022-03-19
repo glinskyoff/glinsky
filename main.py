@@ -153,15 +153,18 @@ def bot_message(message):
             bot.send_message(message.from_user.id, "Участник  |  id  |  Игр  |  Побед")
 
             #sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
-            cursor.execute(f"SELECT * FROM users WHERE id =  ORDER BY score DESC")
+            cursor.execute(f"SELECT * FROM users WHERE id = {id} ORDER BY score DESC")
             sort = cursor.fetchall()
 
             for index, row in enumerate(sort, start = 1):
                 bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
                 
-                limit = 8
+                limit = 2
                 if index == limit:
                     break
+                elif limit > 2:
+                    bot.send_message(message.from_user.id, "-----------------------------------------------------------")
+                    bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
                 
 
 
