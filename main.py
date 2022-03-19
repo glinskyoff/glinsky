@@ -157,9 +157,9 @@ def bot_message(message):
             sort = cursor.fetchall()
 
             for index, row in enumerate(sort, start = 1):
-                all_result = row[4] / row[3] * 100
+                all_result_users = row[4] / row[3] * 100
 
-                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}  |  {all_result:.0f}%")
+                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}  |  {all_result_users:.0f}%")
                 
 
                 limit = 8
@@ -187,7 +187,7 @@ def bot_message(message):
             result_date = cursor.fetchall()
 
             for row in result_date:
-                all_result = row[2] / row[1] * 100
+                all_result_date = row[2] / row[1] * 100
                 all_darts = row[4] / row[3] * 100
                 all_number = row[6] / row[5] * 100
                 all_kosti = row[8] / row[7] * 100
@@ -197,7 +197,7 @@ def bot_message(message):
                 all_moneta = row[16] / row[15] * 100
 
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед  | Winrate")
-                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result:.0f}%")
+                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result_date:.0f}%")
                 bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]} -  {all_darts:.0f}%")
                 bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]} -  {all_number:.0f}%")
                 bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]} -  {all_kosti:.0f}%")
