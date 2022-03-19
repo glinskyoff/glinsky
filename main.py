@@ -162,11 +162,9 @@ def bot_message(message):
                 limit = 2
                 if index == limit:
                     break
-
-            
-
-            bot.send_message(message.from_user.id, "-----------------------------------------------------------")
-            bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
+                elif limit > 2:
+                    bot.send_message(message.from_user.id, "-----------------------------------------------------------")
+                    bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
                 
 
 
