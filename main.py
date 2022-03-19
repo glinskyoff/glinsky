@@ -157,7 +157,9 @@ def bot_message(message):
             sort = cursor.fetchall()
 
             for index, row in enumerate(sort, start = 1):
-                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
+                all_result = row[4] / row[3] * 100
+
+                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}  |  {all_result:.0f}%")
                 
 
                 limit = 8
@@ -187,15 +189,22 @@ def bot_message(message):
             for row in result_date:
                 all_result = row[2] / row[1] * 100
                 all_darts = row[4] / row[3] * 100
+                all_number = row[6] / row[5] * 100
+                all_kosti = row[8] / row[7] * 100
+                all_bowling = row[10] / row[9] * 100
+                all_football = row[12] / row[11] * 100
+                all_basket = row[14] / row[13] * 100
+                all_moneta = row[16] / row[15] * 100
+
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед  | Winrate")
                 bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result:.0f}%")
                 bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]} -  {all_darts:.0f}%")
-                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]}")
-                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]}")
-                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]}")
-                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]}")
-                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]}")
-                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]}")
+                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]} -  {all_number:.0f}%")
+                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]} -  {all_kosti:.0f}%")
+                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]} -  {all_bowling:.0f}%")
+                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]} -  {all_football:.0f}%")
+                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]} -  {all_basket:.0f}%")
+                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]} -  {all_moneta:.0f}%")
 
 
 
