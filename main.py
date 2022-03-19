@@ -48,6 +48,10 @@ def start(message):
 def help(message):
 	bot.send_message(message.from_user.id, "Напиши /start")
 
+@bot.message_handler(commands = ["hello"])
+def help(message):
+	bot.send_message(message.from_user.id, "Напиши /start")
+
 @bot.message_handler(content_types = ["text"])
 def bot_message(message):
     if message.chat.type == "private":
