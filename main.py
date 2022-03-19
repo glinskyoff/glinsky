@@ -157,12 +157,16 @@ def bot_message(message):
             sort = cursor.fetchall()
 
             for index, row in enumerate(sort, start = 1):
-                #bot.send_message(message.from_user.id, f"{index})     {row[4]}  |  {row[3]}  | {row[2]} - (@{row[1]})")
-                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[4]}  |  {row[3]}")
+                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
                 
-                limit = 8
+
+                limit = 1
                 if index == limit:
                     break
+                elif index > 1:
+                    bot.send_message(message.from_user.id, "-----------------------------------------------------------")
+                    bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
+
 
         elif message.text == "🧾 Подробная статистика игр":
 
