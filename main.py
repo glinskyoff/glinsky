@@ -153,7 +153,7 @@ def bot_message(message):
             bot.send_message(message.from_user.id, "Участник  |  id  |  Игр  |  Побед")
 
             #sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
-            cursor.execute(f"SELECT * FROM users WHERE id = {id} ORDER BY score DESC")
+            cursor.execute(f"SELECT * FROM users WHERE ORDER BY score DESC")
             sort = cursor.fetchall()
 
             for index, row in enumerate(sort, start = 1):
