@@ -207,18 +207,6 @@ def bot_message(message):
                 bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]} -  {all_moneta:.0f}%")
 
 
-
-
-            #item1 = types.KeyboardButton("🧾 Таблица лидеров")
-            #item2 = types.KeyboardButton("🎰 Угадай число")
-            #item3 = types.KeyboardButton("🎲 Игра *Кости*")
-            #item4 = types.KeyboardButton("🎳 Боулинг")
-            #item5 = types.KeyboardButton("⚽️ Футбол")
-            #item6 = types.KeyboardButton("🏀 Баскетбол")
-            #item7 = types.KeyboardButton("🟡 Орел & Решка")
-            #item8 = types.KeyboardButton("🎯 Дартс")
-            #item9 = types.KeyboardButton("🔙 Вернуться в Функции")
-
 		# ГОРОСКОП
 
         elif message.text == "🔮 Гороскоп":	
