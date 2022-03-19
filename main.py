@@ -197,14 +197,14 @@ def bot_message(message):
                 all_moneta = row[16] / row[15] * 100
 
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед  | Winrate")
-                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result_date:.0f}%")
-                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]} -  {all_darts:.0f}%")
-                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]} -  {all_number:.0f}%")
-                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]} -  {all_kosti:.0f}%")
-                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]} -  {all_bowling:.0f}%")
-                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]} -  {all_football:.0f}%")
-                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]} -  {all_basket:.0f}%")
-                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]} -  {all_moneta:.0f}%")
+                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result_date}%")
+                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]} -  {all_darts}%")
+                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]} -  {all_number}%")
+                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]} -  {all_kosti}%")
+                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]} -  {all_bowling}%")
+                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]} -  {all_football}%")
+                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]} -  {all_basket}%")
+                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]} -  {all_moneta}%")
 
 
 		# ГОРОСКОП
