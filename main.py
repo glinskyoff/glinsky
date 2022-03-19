@@ -187,14 +187,14 @@ def bot_message(message):
             result_date = cursor.fetchall()
 
             for row in result_date:
-                all_result_date = row[2] / row[1] * 100
-                all_darts = row[4] / row[3] * 100
-                all_number = row[6] / row[5] * 100
-                all_kosti = row[8] / row[7] * 100
-                all_bowling = row[10] / row[9] * 100
-                all_football = row[12] / row[11] * 100
-                all_basket = row[14] / row[13] * 100
-                all_moneta = row[16] / row[15] * 100
+                #all_result_date = row[2] / row[1] * 100
+                #all_darts = row[4] / row[3] * 100
+                #all_number = row[6] / row[5] * 100
+                #all_kosti = row[8] / row[7] * 100
+                #all_bowling = row[10] / row[9] * 100
+                #all_football = row[12] / row[11] * 100
+                #all_basket = row[14] / row[13] * 100
+                #all_moneta = row[16] / row[15] * 100
 #
                 bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед  | Winrate")
                 bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}")
