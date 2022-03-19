@@ -156,17 +156,17 @@ def bot_message(message):
             cursor.execute(f"SELECT * FROM users WHERE id = {id} ORDER BY score DESC")
             sort = cursor.fetchall()
 
-            for index, row in enumerate(sort, start = 1):
+            for index in enumerate(start = 1):
+                for row in sort:
+                    bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
+                    
+                    limit = 3
+                    if index == limit:
+                        break
+
+                bot.send_message(message.from_user.id, "-----------------------------------------------------------")
                 bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
-                
-                limit = 3
-                if index == limit:
-                    break
 
-            
-
-            bot.send_message(message.from_user.id, "-----------------------------------------------------------")
-            bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}")
                 
 
 
