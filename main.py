@@ -1053,12 +1053,12 @@ def bot_message(message):
                     bot.send_message(message.from_user.id, "*Победил - *" + str(name), parse_mode="Markdown")
                     bot.send_message(message.chat.id, "🥳")
             elif ball.dice.value < 3:
-                if ball_two.dice.value < 3:
-                    bot.send_message(message.from_user.id, "Никто не попал. Ничья!")
-                    bot.send_message(message.chat.id, "🤷‍♂")
-                elif ball_two.dice.value > 3:
+                if ball_two.dice.value > 3:
                     bot.send_message(message.from_user.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
                     bot.send_message(message.from_user.id, "😞")
+                else:
+                    bot.send_message(message.from_user.id, "Никто не попал. Ничья!")
+                    bot.send_message(message.chat.id, "🤷‍♂")
             else:
                 bot.send_message(message.from_user.id, "Никто не попал. Ничья!")
                 bot.send_message(message.from_user.id, "🤷‍♂")
