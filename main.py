@@ -1,4 +1,6 @@
-#!/usr/bin/python3.10
+# Code by: glinsky
+# Made in December, 2022
+
 import math, telebot, requests, time, random, wikipedia, qrcode
 
 from telebot import types
@@ -1429,7 +1431,7 @@ def bot_message(message):
                 item2 = types.KeyboardButton("Нет")
                 markup.row(item1)
                 markup.row(item2)
-                bot.send_message(id, "Хотите сыграть с ботом в Угадай число?\nПравила игры максимально просты.\nБот загадывает число от 1 до 10, а вам нужно угадать это число, даётся 5 попыток!", reply_markup = markup )        
+                bot.send_message(id, "Хотите сыграть с ботом в Угадай число?\nПравила игры максимально просты.\nБот загадывает число от 1 до 10, а вам нужно угадать это число, у вас будет 5 попыток", reply_markup = markup )        
           
                 updateUser()
 
@@ -1828,7 +1830,7 @@ def wiki_result(message):
 	try:
 		number = int(message.text)
 		if number < 0 or number > 5:
-			bot.send_message(id, "Вы ввели неверный диапазон. \nВведите пожалуйста от 0 до 5")
+			bot.send_message(id, "Вы ввели неверный диапазон. \nВведите пожалуйста цифру от 0 до 5")
 			bot.register_next_step_handler(message, wiki_result)
 		else:
 			try:
