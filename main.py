@@ -1,20 +1,16 @@
+#!/usr/bin/python3.10
 import math, telebot, requests, time, random, wikipedia, qrcode
-import os
-import logging
-import psycopg2
-from time import sleep
+
 from telebot import types
+from time import sleep
+from datetime import datetime
 from bs4 import BeautifulSoup
+from pymongo import MongoClient
+
+from database import *
 from config import *
-from flask import Flask, request
 
-bot = telebot.TeleBot(BOT_TOKEN)
-server = Flask(__name__)
-logger = telebot.logger
-logger.setLevel(logging.DEBUG)
-
-db = psycopg2.connect(DB_URI, sslmode="require")
-cursor = db.cursor()
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode = None)
 
 url = "https://mainfin.ru/currency/omsk"
 request_get = requests.get(url)
@@ -22,18 +18,17 @@ soup = BeautifulSoup(request_get.text, "html.parser")
 price_usd = soup.find("span", id="buy_usd").text
 price_euro = soup.find("span", id="buy_eur").text
 
-@bot.message_handler(commands=["start"])
+# Command - /start
+@bot.message_handler(commands=['start'])
 def start(message):
+    global id, username, name, lastActive
+
     id = message.from_user.id
     username = message.from_user.username
     name = message.from_user.first_name
-    cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-    result_id = cursor.fetchone()
+    lastActive = datetime.now()
 
-    if not result_id:
-        cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-        cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        db.commit()
+    updateUser()
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
     item1 = types.KeyboardButton("🧾 Таблица лидеров")
@@ -42,1407 +37,1574 @@ def start(message):
     markup.row(item1)
     markup.row(item2)
     markup.row(item3)
-    bot.send_message(message.from_user.id, "Привет " + message.from_user.first_name + " 👋" +", чем я могу тебе помочь?", reply_markup = markup)
-   
-@bot.message_handler(commands = ["help"])
-def help(message):
-	bot.send_message(message.from_user.id, "Напиши /start")
+    bot.send_message(id, "Привет " + name + " 👋" +", чем я могу тебе помочь?", reply_markup = markup)
 
+# Type - Text
 @bot.message_handler(content_types = ["text"])
 def bot_message(message):
+    global id, username, name, lastActive
+
+    id = message.from_user.id
+    username = message.from_user.username
+    name = message.from_user.first_name
+    lastActive = datetime.now()
+
     if message.chat.type == "private":
-        
-        # ПРОЧЕЕ
-        if message.text == "🛠 Прочее":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("📄 Информация")
-            item2 = types.KeyboardButton("📝 Предложения и улучшения")
-            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
+        match message.text:
+            case "🛠 Прочее":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("📄 Информация")
+                item2 = types.KeyboardButton("📝 Предложения и улучшения")
+                item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-		# ПРЕДЛОЖЕНИЯ И УЛУЧШЕНИЯ
-        elif message.text == "📝 Предложения и улучшения":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Да ✅")
-            item2 = types.KeyboardButton("Нет ⛔")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.from_user.id, "Желаете оставить предложение по улучшению?", reply_markup = markup)
+                updateUser()
 
-        elif message.text == "Да ✅":
-            bot.send_message(message.chat.id, "Напишите ваши улучшения в чат! ⤵️")
-            bot.register_next_step_handler(message, up_bot)
+            case "📝 Предложения и улучшения":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Да ✅")
+                item2 = types.KeyboardButton("Нет ⛔")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Желаете оставить предложение по улучшению?", reply_markup = markup)
 
-        elif message.text == "Нет ⛔":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("📄 Информация")
-            item2 = types.KeyboardButton("📝 Предложения и улучшения")
-            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
+                updateUser()
 
-		# ИНФОРМАЦИЯ
+            case "Да ✅":
+                bot.send_message(id, "Напишите ваши улучшения в чат! ⤵️")
+                bot.register_next_step_handler(message, up_bot)
 
-        elif message.text == "📄 Информация":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🆔 Узнать ID")
-            item2 = types.KeyboardButton("📑 Информация о боте")
-            item3 = types.KeyboardButton("🔙 Вернуться в Прочее")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
+                updateUser()   
 
-        elif message.text == "📑 Информация о боте":
-            bot.send_message(message.from_user.id, "Данный бот создан для удобства и практики) 🙂.\nПо всем вопросам - @glinskyoffical")
+            case "Нет ⛔":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("📄 Информация")
+                item2 = types.KeyboardButton("📝 Предложения и улучшения")
+                item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-        elif message.text == "🔙 Вернуться в Информация":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🆔 Узнать ID")
-            item2 = types.KeyboardButton("📑 Информация о боте")
-            item3 = types.KeyboardButton("🔙 Вернуться в Прочее")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
+                updateUser()
 
-        elif message.text == "🔙 Вернуться в Прочее":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("📄 Информация")
-            item2 = types.KeyboardButton("📝 Предложения и улучшения")
-            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)					
+            case "📄 Информация":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🆔 Узнать ID")
+                item2 = types.KeyboardButton("📑 Информация о боте")
+                item3 = types.KeyboardButton("🔙 Вернуться в Прочее")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-        elif message.text == "🆔 Узнать ID":
-            bot.send_message(message.from_user.id, "Ваш ID - " + str(message.from_user.id))
+                updateUser()
 
-		# ТАБЛИЦА ЛИДЕРОВ
-
-        elif message.text == "🧾 Таблица лидеров":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🧾 Показать таблица лидеров")
-            item2 = types.KeyboardButton("🧾 Подробная статистика игр")
-            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)
-
-        elif message.text == "🧾 Показать таблица лидеров":
-
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
-
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
-
-            bot.send_message(message.from_user.id, "Таблица лидеров среди людей которые больше всего выйграли данного бота)")
-            bot.send_message(message.from_user.id, "Участник  |  id  |  Игр  |  Побед")
-
-            #sortirovka = (f"SELECT * FROM users ORDER BY score DESC")
-            cursor.execute(f"SELECT * FROM users ORDER BY score DESC")
-            sort = cursor.fetchall()
-
-            for index, row in enumerate(sort, start = 1):
-                all_result_users = row[4] / row[3] * 100
-
-                bot.send_message(message.from_user.id, f"{index})  {row[2]} - (@{row[1]})  |  {row[3]}  |  {row[4]}  |  {all_result_users:.0f}%")
+            case "📑 Информация о боте":
+                bot.send_message(id, "Данный бот создан для удобства и практики) 🙂.\nПо всем вопросам - @disanaverno")
                 
+                updateUser()
 
-                limit = 8
-                if index == limit:
-                    break
-                
+            case "🔙 Вернуться в Информация":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🆔 Узнать ID")
+                item2 = types.KeyboardButton("📑 Информация о боте")
+                item3 = types.KeyboardButton("🔙 Вернуться в Прочее")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
+                updateUser()
 
-        elif message.text == "🧾 Подробная статистика игр":
+            case "🔙 Вернуться в Прочее":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("📄 Информация")
+                item2 = types.KeyboardButton("📝 Предложения и улучшения")
+                item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
+                updateUser()
 
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
+            case "🆔 Узнать ID":
+                bot.send_message(id, "Ваш ID - " + str(id))
 
-            bot.send_message(message.from_user.id, "Подробная статистика игр")
+                updateUser()
 
-            date = cursor.execute(f"SELECT * FROM date WHERE id = {id}")
-            result_date = cursor.fetchall()
+            case "🧾 Таблица лидеров":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🧾 Показать таблица лидеров")
+                item2 = types.KeyboardButton("🧾 Подробная статистика игр")
+                item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            for row in result_date:
-                all_result_date = row[2] / row[1] * 100
-                all_darts = row[4] / row[3] * 100
-                all_number = row[6] / row[5] * 100
-                all_kosti = row[8] / row[7] * 100
-                all_bowling = row[10] / row[9] * 100
-                all_football = row[12] / row[11] * 100
-                all_basket = row[14] / row[13] * 100
-                all_moneta = row[16] / row[15] * 100
-#
-                bot.send_message(message.from_user.id, "Название  |  Игр  |  Побед  | Winrate")
-                bot.send_message(message.from_user.id, f"🎈 Общее  -  {row[1]}  -  {row[2]}  -  {all_result_date:.0f}")
-                bot.send_message(message.from_user.id, f"🎯 Дартс  -  {row[3]}  -  {row[4]}  -  {all_darts:.0f}")
-                bot.send_message(message.from_user.id, f"🎰 Угадай число  -  {row[5]}  -  {row[6]}  -  {all_number:.0f}")
-                bot.send_message(message.from_user.id, f"🎲 Игра *Кости*  -  {row[7]}  -  {row[8]}  -  {all_kosti:.0f}")
-                bot.send_message(message.from_user.id, f"🎳 Боулинг  -  {row[9]}  -  {row[10]}  -  {all_bowling:.0f}")
-                bot.send_message(message.from_user.id, f"⚽️ Футбол  -  {row[11]}  -  {row[12]}  -  {all_football:.0f}")
-                bot.send_message(message.from_user.id, f"🏀 Баскетбол  -  {row[13]}  -  {row[14]}  -  {all_basket:.0f}")
-                bot.send_message(message.from_user.id, f"🟡 Орел & Решка -  {row[15]}  -  {row[16]}  -  {all_moneta:.0f}")
+                updateUser()
 
+            case "🧾 Показать таблица лидеров":
+                allUsers = users.find().sort("score", -1)
 
-		# ГОРОСКОП
+                bot.send_message(id, "Таблица лидеров среди людей которые больше всего выйграли бота")
+                bot.send_message(id, "№ | Участник | Кол-во игр | Кол-во побед")
 
-        elif message.text == "🔮 Гороскоп":	
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Лев ♌️")
-            item2 = types.KeyboardButton("Телец ♉️ ")
-            item3 = types.KeyboardButton("Овен ♈️")
-            item4 = types.KeyboardButton("Близнецы ♊️")
-            item5 = types.KeyboardButton("Рак ♋️")
-            item6 = types.KeyboardButton("Дева ♍️")
-            item7 = types.KeyboardButton("Весы ♎️")
-            item8 = types.KeyboardButton("Скорпион ♏️")
-            item9 = types.KeyboardButton("Стрелец ♐️")
-            item10 = types.KeyboardButton("Козерог ♑️")
-            item11 = types.KeyboardButton("Водолей ♒️")
-            item12 = types.KeyboardButton("Рыбы ♓️")
-            item13 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1, item2, item3)
-            markup.row(item4, item5, item6)
-            markup.row(item7, item8, item9)
-            markup.row(item10, item11, item12)
-            markup.row(item13)
-            bot.send_message(message.from_user.id, "🚩 Выберите свой знак зодиака", reply_markup = markup)	
+                for index, user in enumerate(allUsers, start=1):
+                    bot.send_message(id, str(index) + " | " + str(user["name"]) + " (@" + str(user["username"]) + ") | " + str(user["games"]) + " | " + str(user["score"]))
+   
+                    if index == 5:
+                        break
 
+            case "🧾 Подробная статистика игр":      
+                bot.send_message(id, "Подробная статистика игр")
 
-        elif message.text == "Лев ♌️":
-            url = "https://horo.mail.ru/prediction/leo/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
+                statsUser = date.find_one({"id": id})
 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Лев - сегодня")
-            item2 = types.KeyboardButton("Лев - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)
+                # General
+                if statsUser["games"] == 0 and statsUser["score"] == 0:
+                    win_general = 0
+                else:
+                    win_general = statsUser["score"] / statsUser["games"] * 100
 
-        elif message.text == "Лев - сегодня":
-            url = "https://horo.mail.ru/prediction/leo/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text
+                # Darts
+                if statsUser["games_darts"] == 0 and statsUser["score_darts"] == 0:
+                    win_darts = 0
+                else:
+                    win_darts = statsUser["score_darts"] / statsUser["games_darts"] * 100
+  
+                # Number
+                if statsUser["games_number"] == 0 and statsUser["score_number"] == 0:
+                    win_number = 0
+                else:
+                    win_number = statsUser["score_number"] / statsUser["games_number"] * 100
 
-            bot.send_message(message.from_user.id, today + " - *Лев* ♌️" +"\n\n" + lev, parse_mode = "Markdown")
+                # Kosti
+                if statsUser["games_kosti"] == 0 and statsUser["score_kosti"] == 0:
+                    win_kosti = 0
+                else:
+                    win_kosti = statsUser["score_kosti"] / statsUser["games_kosti"] * 100
 
-        elif message.text == "Лев - завтра":
-            url = "https://horo.mail.ru/prediction/leo/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text
+                # Bowling
+                if statsUser["games_bowling"] == 0 and statsUser["score_bowling"] == 0:
+                    win_bowling = 0
+                else:
+                    win_bowling = statsUser["score_bowling"] / statsUser["games_bowling"] * 100
 
-            bot.send_message(message.from_user.id, tomorrow + " - *Лев* ♌️" + "\n\n" + lev, parse_mode = "Markdown")
+                # Football
+                if statsUser["games_football"] == 0 and statsUser["score_football"] == 0:
+                    win_football = 0
+                else:
+                    win_football = statsUser["score_football"] / statsUser["games_football"] * 100
 
-        elif message.text == "Телец ♉️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Телец - сегодня")
-            item2 = types.KeyboardButton("Телец - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)
+                # Basket
+                if statsUser["games_basket"] == 0 and statsUser["score_basket"] == 0:
+                    win_basket = 0
+                else:
+                    win_basket = statsUser["score_basket"] / statsUser["games_basket"] * 100
 
-        elif message.text == "Телец - сегодня":
-            url = "https://horo.mail.ru/prediction/taurus/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text
+                # Moneta
+                if statsUser["games_moneta"] == 0 and statsUser["score_moneta"] == 0:
+                    win_moneta = 0
+                else:
+                    win_moneta = statsUser["score_moneta"] / statsUser["games_moneta"] * 100
 
-            bot.send_message(message.from_user.id, today + " - *Телец* ♉️" +"\n\n" + lev, parse_mode = "Markdown")
+                bot.send_message(id, "Название  |  Игр  |  Побед  | Winrate")
+                bot.send_message(id, "🎈 Общее - " + str(statsUser["games"]) + " - " + str(statsUser["score"]) + " - " + f'{win_general:.0f}' + "%")
+                bot.send_message(id, "🎯 Дартс - " + str(statsUser["games_darts"]) + " - " + str(statsUser["score_darts"]) + " - " + f'{win_darts:.0f}' + "%")
+                bot.send_message(id, "🎰 Угадай число - " + str(statsUser["games_number"]) + " - " + str(statsUser["score_number"]) + " - " + f'{win_number:.0f}' + "%")
+                bot.send_message(id, "🎲 Игра *Кости* - " + str(statsUser["games_kosti"]) + " - " + str(statsUser["score_kosti"]) + " - " + f'{win_kosti:.0f}' + "%")
+                bot.send_message(id, "🎳 Боулинг - " + str(statsUser["games_bowling"]) + " - " + str(statsUser["score_bowling"]) + " - " + f'{win_bowling:.0f}' + "%")
+                bot.send_message(id, "⚽️ Футбол - " + str(statsUser["games_football"]) + " - " + str(statsUser["score_football"]) + " - " + f'{win_football:.0f}' + "%")
+                bot.send_message(id, "🏀 Баскетбол - " + str(statsUser["games_basket"]) + " - " + str(statsUser["score_basket"]) + " - " + f'{win_basket:.0f}' + "%")
+                bot.send_message(id, "🟡 Орел & Решка - " + str(statsUser["games_moneta"]) + " - " + str(statsUser["score_moneta"]) + " - " + f'{win_moneta:.0f}' + "%")
 
-        elif message.text == "Телец - завтра":
-            url = "https://horo.mail.ru/prediction/taurus/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text
+            # Horoscope
+            case "🔮 Гороскоп":	
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Лев ♌️")
+                item2 = types.KeyboardButton("Телец ♉️ ")
+                item3 = types.KeyboardButton("Овен ♈️")
+                item4 = types.KeyboardButton("Близнецы ♊️")
+                item5 = types.KeyboardButton("Рак ♋️")
+                item6 = types.KeyboardButton("Дева ♍️")
+                item7 = types.KeyboardButton("Весы ♎️")
+                item8 = types.KeyboardButton("Скорпион ♏️")
+                item9 = types.KeyboardButton("Стрелец ♐️")
+                item10 = types.KeyboardButton("Козерог ♑️")
+                item11 = types.KeyboardButton("Водолей ♒️")
+                item12 = types.KeyboardButton("Рыбы ♓️")
+                item13 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1, item2, item3)
+                markup.row(item4, item5, item6)
+                markup.row(item7, item8, item9)
+                markup.row(item10, item11, item12)
+                markup.row(item13)
+                bot.send_message(id, "🚩 Выберите свой знак зодиака", reply_markup = markup)
 
-            bot.send_message(message.from_user.id, tomorrow + " - *Телец* ♉️" + "\n\n" + lev, parse_mode = "Markdown")
+                updateUser()	            
+            
+            case "Лев ♌️":
+                url = "https://horo.mail.ru/prediction/leo/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text          
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Лев - сегодня")
+                item2 = types.KeyboardButton("Лев - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
 
-        elif message.text == "Овен ♈️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Овен - сегодня")
-            item2 = types.KeyboardButton("Овен - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Овен - сегодня":
-            url = "https://horo.mail.ru/prediction/aries/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Овен* ♈️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Овен - завтра":
-            url = "https://horo.mail.ru/prediction/aries/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Овен* ♈️" + "\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Близнецы ♊️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Близнецы - сегодня")
-            item2 = types.KeyboardButton("Близнецы - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Близнецы - сегодня":
-            url = "https://horo.mail.ru/prediction/gemini/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Близнецы* ♊️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Близнецы - завтра":
-            url = "https://horo.mail.ru/prediction/gemini/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Близнецы* ♊️" + "\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Рак ♋️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Рак - сегодня")
-            item2 = types.KeyboardButton("Рак - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Рак - сегодня":
-            url = "https://horo.mail.ru/prediction/cancer/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Рак* ♋️" +"\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Рак - завтра":
-            url = "https://horo.mail.ru/prediction/cancer/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Рак* ♋️" + "\n\n" + lev, parse_mode = "Markdown")	        
-        
-        elif message.text == "Дева ♍️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Дева - сегодня")
-            item2 = types.KeyboardButton("Дева - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Дева - сегодня":
-            url = "https://horo.mail.ru/prediction/virgo/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Дева* ♍️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Дева - завтра":
-            url = "https://horo.mail.ru/prediction/virgo/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Дева* ♍️" + "\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Весы ♎️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Весы - сегодня")
-            item2 = types.KeyboardButton("Весы - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Весы - сегодня":
-            url = "https://horo.mail.ru/prediction/libra/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Весы* ♎️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Весы - завтра":
-            url = "https://horo.mail.ru/prediction/libra/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Весы* ♎️" + "\n\n" + lev, parse_mode = "Markdown")	        
-        
-        elif message.text == "Скорпион ♏️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Скорпион - сегодня")
-            item2 = types.KeyboardButton("Скорпион - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Скорпион - сегодня":
-            url = "https://horo.mail.ru/prediction/scorpio/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Скорпион* ♏️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Скорпион - завтра":
-            url = "https://horo.mail.ru/prediction/scorpio/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Скорпион* ♏️" + "\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Стрелец ♐️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Стрелец - сегодня")
-            item2 = types.KeyboardButton("Стрелец - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Стрелец - сегодня":
-            url = "https://horo.mail.ru/prediction/sagittarius/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Стрелец* ♐️" +"\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Стрелец - завтра":
-            url = "https://horo.mail.ru/prediction/sagittarius/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Стрелец* ♐️" + "\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Козерог ♑️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Козерог - сегодня")
-            item2 = types.KeyboardButton("Козерог - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Козерог - сегодня":
-            url = "https://horo.mail.ru/prediction/capricorn/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Козерог* ♑️" +"\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Козерог - завтра":
-            url = "https://horo.mail.ru/prediction/capricorn/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Козерог* ♑️" + "\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Водолей ♒️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Водолей - сегодня")
-            item2 = types.KeyboardButton("Водолей - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Водолей - сегодня":
-            url = "https://horo.mail.ru/prediction/aquarius/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Водолей* ♒️" +"\n\n" + lev, parse_mode = "Markdown")        
-        
-        elif message.text == "Водолей - завтра":
-            url = "https://horo.mail.ru/prediction/aquarius/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Водолей* ♒️" + "\n\n" + lev, parse_mode = "Markdown")	        
-        
-        elif message.text == "Рыбы ♓️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Рыбы - сегодня")
-            item2 = types.KeyboardButton("Рыбы - завтра")
-            item3 = types.KeyboardButton("🔙 Назад")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите день.", reply_markup = markup)     
-        
-        elif message.text == "Рыбы - сегодня":
-            url = "https://horo.mail.ru/prediction/pisces/today"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, today + " - *Рыбы* ♓️" +"\n\n" + lev, parse_mode = "Markdown")       
-        
-        elif message.text == "Рыбы - завтра":
-            url = "https://horo.mail.ru/prediction/pisces/tomorrow"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
-            today = soup.find("span", class_="link__text").text
-            tomorrow = soup.find("span", class_="link__text").text
-            lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
-            bot.send_message(message.from_user.id, tomorrow + " - *Рыбы* ♓️" + "\n\n" + lev, parse_mode = "Markdown")																			        
+                updateUser()  
 
-        elif message.text == "🔙 Назад":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Лев ♌️")
-            item2 = types.KeyboardButton("Телец ♉️")
-            item3 = types.KeyboardButton("Овен ♈️")
-            item4 = types.KeyboardButton("Близнецы ♊️")
-            item5 = types.KeyboardButton("Рак ♋️")
-            item6 = types.KeyboardButton("Дева ♍️")
-            item7 = types.KeyboardButton("Весы ♎️")
-            item8 = types.KeyboardButton("Скорпион ♏️")
-            item9 = types.KeyboardButton("Стрелец ♐️")
-            item10 = types.KeyboardButton("Козерог ♑️")
-            item11 = types.KeyboardButton("Водолей ♒️")
-            item12 = types.KeyboardButton("Рыбы ♓️")
-            item13 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1, item2, item3)
-            markup.row(item4, item5, item6)
-            markup.row(item7, item8, item9)
-            markup.row(item10, item11, item12)
-            markup.row(item13)
-            bot.send_message(message.from_user.id, "🚩 Выберите свой знак зодиака", reply_markup = markup)				        
+            case "Лев - сегодня":
+                url = "https://horo.mail.ru/prediction/leo/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text         
+                bot.send_message(id, today + " - *Лев* ♌️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()
+
+            case "Лев - завтра":
+                url = "https://horo.mail.ru/prediction/leo/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text         
+                bot.send_message(id, tomorrow + " - *Лев* ♌️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()           
+            
+            case "Телец ♉️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Телец - сегодня")
+                item2 = types.KeyboardButton("Телец - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()     
+            
+            case "Телец - сегодня":
+                url = "https://horo.mail.ru/prediction/taurus/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text         
+                bot.send_message(id, today + " - *Телец* ♉️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()       
+            
+            case "Телец - завтра":
+                url = "https://horo.mail.ru/prediction/taurus/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text         
+                bot.send_message(id, tomorrow + " - *Телец* ♉️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()        
+            
+            case "Овен ♈️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Овен - сегодня")
+                item2 = types.KeyboardButton("Овен - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()
+
+            case "Овен - сегодня":
+                url = "https://horo.mail.ru/prediction/aries/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Овен* ♈️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()      
+
+            case "Овен - завтра":
+                url = "https://horo.mail.ru/prediction/aries/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Овен* ♈️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()     
+
+            case "Близнецы ♊️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Близнецы - сегодня")
+                item2 = types.KeyboardButton("Близнецы - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser() 
+
+            case "Близнецы - сегодня":
+                url = "https://horo.mail.ru/prediction/gemini/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Близнецы* ♊️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()     
+
+            case "Близнецы - завтра":
+                url = "https://horo.mail.ru/prediction/gemini/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Близнецы* ♊️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()      
+
+            case "Рак ♋️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Рак - сегодня")
+                item2 = types.KeyboardButton("Рак - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()
+
+            case "Рак - сегодня":
+                url = "https://horo.mail.ru/prediction/cancer/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Рак* ♋️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()       
+
+            case "Рак - завтра":
+                url = "https://horo.mail.ru/prediction/cancer/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Рак* ♋️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()        
+
+            case "Дева ♍️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Дева - сегодня")
+                item2 = types.KeyboardButton("Дева - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()
+
+            case "Дева - сегодня":
+                url = "https://horo.mail.ru/prediction/virgo/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Дева* ♍️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()    
+
+            case "Дева - завтра":
+                url = "https://horo.mail.ru/prediction/virgo/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Дева* ♍️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()      
+
+            case "Весы ♎️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Весы - сегодня")
+                item2 = types.KeyboardButton("Весы - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser() 
+
+            case "Весы - сегодня":
+                url = "https://horo.mail.ru/prediction/libra/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Весы* ♎️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()     
+
+            case "Весы - завтра":
+                url = "https://horo.mail.ru/prediction/libra/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Весы* ♎️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()       
+
+            case "Скорпион ♏️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Скорпион - сегодня")
+                item2 = types.KeyboardButton("Скорпион - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()
+
+            case "Скорпион - сегодня":
+                url = "https://horo.mail.ru/prediction/scorpio/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Скорпион* ♏️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()      
+
+            case "Скорпион - завтра":
+                url = "https://horo.mail.ru/prediction/scorpio/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Скорпион* ♏️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()      
+
+            case "Стрелец ♐️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Стрелец - сегодня")
+                item2 = types.KeyboardButton("Стрелец - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser() 
+
+            case "Стрелец - сегодня":
+                url = "https://horo.mail.ru/prediction/sagittarius/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Стрелец* ♐️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()       
+
+            case "Стрелец - завтра":
+                url = "https://horo.mail.ru/prediction/sagittarius/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Стрелец* ♐️" + "\n\n" + lev, parse_mode = "Markdown")        
+
+                updateUser()
+
+            case "Козерог ♑️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Козерог - сегодня")
+                item2 = types.KeyboardButton("Козерог - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()   
+
+            case "Козерог - сегодня":
+                url = "https://horo.mail.ru/prediction/capricorn/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Козерог* ♑️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()        
+
+            case "Козерог - завтра":
+                url = "https://horo.mail.ru/prediction/capricorn/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Козерог* ♑️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()        
+
+            case "Водолей ♒️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Водолей - сегодня")
+                item2 = types.KeyboardButton("Водолей - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()  
+
+            case "Водолей - сегодня":
+                url = "https://horo.mail.ru/prediction/aquarius/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Водолей* ♒️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()       
+
+            case "Водолей - завтра":
+                url = "https://horo.mail.ru/prediction/aquarius/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Водолей* ♒️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()        
+
+            case "Рыбы ♓️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Рыбы - сегодня")
+                item2 = types.KeyboardButton("Рыбы - завтра")
+                item3 = types.KeyboardButton("🔙 Назад")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите день.", reply_markup = markup)
+
+                updateUser()  
+
+            case "Рыбы - сегодня":
+                url = "https://horo.mail.ru/prediction/pisces/today"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, today + " - *Рыбы* ♓️" +"\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()     
+
+            case "Рыбы - завтра":
+                url = "https://horo.mail.ru/prediction/pisces/tomorrow"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")
+                today = soup.find("span", class_="link__text").text
+                tomorrow = soup.find("span", class_="link__text").text
+                lev = soup.find("div", class_="article__item article__item_alignment_left article__item_html").text     
+                bot.send_message(id, tomorrow + " - *Рыбы* ♓️" + "\n\n" + lev, parse_mode = "Markdown")
+
+                updateUser()																		                    
+            
+            case "🔙 Назад":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Лев ♌️")
+                item2 = types.KeyboardButton("Телец ♉️")
+                item3 = types.KeyboardButton("Овен ♈️")
+                item4 = types.KeyboardButton("Близнецы ♊️")
+                item5 = types.KeyboardButton("Рак ♋️")
+                item6 = types.KeyboardButton("Дева ♍️")
+                item7 = types.KeyboardButton("Весы ♎️")
+                item8 = types.KeyboardButton("Скорпион ♏️")
+                item9 = types.KeyboardButton("Стрелец ♐️")
+                item10 = types.KeyboardButton("Козерог ♑️")
+                item11 = types.KeyboardButton("Водолей ♒️")
+                item12 = types.KeyboardButton("Рыбы ♓️")
+                item13 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1, item2, item3)
+                markup.row(item4, item5, item6)
+                markup.row(item7, item8, item9)
+                markup.row(item10, item11, item12)
+                markup.row(item13)
+                bot.send_message(id, "🚩 Выберите свой знак зодиака", reply_markup = markup)
+
+                updateUser()			        
         
         # ФУНКЦИИ       
-        elif message.text == "💎 Функции":             
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
+            case "💎 Функции":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("💰 Курс валют")
+                item2 = types.KeyboardButton("🌍 Погода")
+                item3 = types.KeyboardButton("🎰 Рандомное число")
+                item4 = types.KeyboardButton("🎡 Сыграть с ботом")
+                item5 = types.KeyboardButton("📖 Вики")
+                item6 = types.KeyboardButton("🔮 Гороскоп")
+                item7 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1, item2)
+                markup.row(item3, item4)
+                markup.row(item5, item6)
+                markup.row(item7)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
-                   
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("💰 Курс валют")
-            item2 = types.KeyboardButton("🌍 Погода")
-            item3 = types.KeyboardButton("🎰 Рандомное число")
-            item4 = types.KeyboardButton("🎡 Сыграть с ботом")
-            item5 = types.KeyboardButton("📖 Вики")
-            item6 = types.KeyboardButton("🔮 Гороскоп")
-            item7 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1, item2)
-            markup.row(item3, item4)
-            markup.row(item5, item6)
-            markup.row(item7)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)    
-        
-        elif message.text == "🔙 Вернуться в Функции":
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
+                updateUser()
+          
+            case "🔙 Вернуться в Функции":          
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("💰 Курс валют")
+                item2 = types.KeyboardButton("🌍 Погода")
+                item3 = types.KeyboardButton("🎰 Рандомное число")
+                item4 = types.KeyboardButton("🎡 Сыграть с ботом")
+                item5 = types.KeyboardButton("📖 Вики")
+                item6 = types.KeyboardButton("🔮 Гороскоп")
+                item7 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1, item2)
+                markup.row(item3, item4)
+                markup.row(item5, item6)
+                markup.row(item7)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
+                updateUser()                
+            
+            case "📖 Вики":
+                bot.send_message(id, "Введите ваш запрос: ")
+                bot.register_next_step_handler(message, wiki)
 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("💰 Курс валют")
-            item2 = types.KeyboardButton("🌍 Погода")
-            item3 = types.KeyboardButton("🎰 Рандомное число")
-            item4 = types.KeyboardButton("🎡 Сыграть с ботом")
-            item5 = types.KeyboardButton("📖 Вики")
-            item6 = types.KeyboardButton("🔮 Гороскоп")
-            item7 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1, item2)
-            markup.row(item3, item4)
-            markup.row(item5, item6)
-            markup.row(item7)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)       
+                updateUser()
+          
+            case "📍 Вернуться в Главное меню":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🧾 Таблица лидеров")
+                item2 = types.KeyboardButton("💎 Функции")
+                item3 = types.KeyboardButton("🛠 Прочее")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id,  str(name) + ", чем я могу тебе помочь?", reply_markup = markup)
 
-        elif message.text == "📖 Вики":
-            bot.send_message(message.chat.id, "Введите ваш запрос: ")
-            bot.register_next_step_handler(message, wiki)       
-        
-        elif message.text == "📍 Вернуться в Главное меню":
-            name = message.from_user.first_name     
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🧾 Таблица лидеров")
-            item2 = types.KeyboardButton("💎 Функции")
-            item3 = types.KeyboardButton("🛠 Прочее")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id,  str(name) + ", чем я могу тебе помочь?", reply_markup = markup)     
-        
-        # КУРС ВАЛЮТ        
-        elif message.text == "💰 Курс валют":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("📈 Курс валют")
-            item2 = types.KeyboardButton("🔁 Перевести")
-            item3 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1, item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)       
-        
-        elif message.text == "📈 Курс валют":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("💵 Доллар")
-            item2 = types.KeyboardButton("💶 Евро")
-            item3 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
-            markup.row(item1, item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "Выберите валюту 💵 💶", reply_markup = markup)      
-        
-        elif message.text == "💵 Доллар":
-            bot.send_message(message.chat.id, "💵 Доллар на данный момент - "+ price_usd +" ₽")     
-        
-        elif message.text == "💶 Евро":
-            bot.send_message(message.chat.id, "💶 Евро на данный момент - "+ price_euro +" ₽")      
-        
-        elif message.text == "🔁 Перевести":	
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
-            item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
-            item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
-            item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
-            item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
-            markup.row(item1, item3)
-            markup.row(item2, item4)
-            markup.row(item5)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)       
-        
-        elif message.text == "🔙 Вернуться в Курс Валют":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("📈 Курс валют")
-            item2 = types.KeyboardButton("🔁 Перевести")
-            item3 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1, item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)       
-        
-        elif message.text == "💴 Рубли в 💵 Доллар":
-            bot.send_message(message.chat.id, "Введите кол-во которое хотите перевести\n" + price_usd + " ₽" + " = 1 USD")
-            bot.register_next_step_handler(message, rubl_dollar)        
-        
-        elif message.text == "💴 Рубли в 💶 Евро":
-            bot.send_message(message.chat.id, "Введите кол-во которое хотите перевести\n" + price_euro + " ₽" + " = 1 EURO")
-            bot.register_next_step_handler(message, rubl_euro)      
-        
-        elif message.text == "💵 Доллар в 💴 Рубли":
-            bot.send_message(message.chat.id, "Введите кол-во которое хотите перевести\n1 USD = " + price_usd + " ₽")
-            bot.register_next_step_handler(message, dollar_rubl)        
-        
-        elif message.text == "💶 Евро в 💴 Рубли":
-            bot.send_message(message.chat.id, "Введите кол-во которое хотите перевести\n1 EURO = " + price_euro + " ₽")
-            bot.register_next_step_handler(message, euro_rubl)      
-        
-        # ПОГОДА        
-        elif message.text == "🌍 Погода":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🌍 Омск")
-            item2 = types.KeyboardButton("🌍 Москва")
-            item3 = types.KeyboardButton("🌍 Новосибирск")
-            item4 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            markup.row(item4)
-            bot.send_message(message.from_user.id, "В каком городе хотите узнать погоду на данный момент?\nЕсли здесь нету вашего города, напишите в предложку, и я с радостью добавлю)", reply_markup = markup)        
-        
-        # ОМСК      
-        elif message.text == "🌍 Омск":
-        
-            url = "https://prognoz3.ru/россия/омская-область/погода-в-омске"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
+                updateUser()   
+          
+            # КУРС ВАЛЮТ        
+            case "💰 Курс валют":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("📈 Курс валют")
+                item2 = types.KeyboardButton("🔁 Перевести")
+                item3 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1, item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            time = soup.find("div", class_="b-weather_current_date").text
+                updateUser()      
+          
+            case "📈 Курс валют":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("💵 Доллар")
+                item2 = types.KeyboardButton("💶 Евро")
+                item3 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+                markup.row(item1, item2)
+                markup.row(item3)
+                bot.send_message(id, "Выберите валюту 💵 💶", reply_markup = markup)
 
-            sunrise_time = soup.find("span", class_="sunrise_time").text
-            sunset_time = soup.find("span", class_="sunset_time").text      
-            temp = soup.find("span", class_="temperature").text
-            note = soup.find("span", class_="note").text
-            feelslike = soup.find("span", class_="feelslike").text
-            precipitation = soup.find("span", class_="precipitation").text
-            pressure = soup.find("span", class_="pressure").text
-            humidity = soup.find("span", class_="humidity").text        
+                updateUser()    
+          
+            case "💵 Доллар":
+                bot.send_message(id, "💵 Доллар на данный момент - " + price_usd + " ₽")
 
-            bot.send_message(message.chat.id, "Погода в Омске\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))     
-        
-        # МОСКВА        
-        elif message.text == "🌍 Москва":
-        
-            url = "https://prognoz3.ru/россия/московская-область/погода-в-москве"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
+                updateUser()
+          
+            case "💶 Евро":
+                bot.send_message(id, "💶 Евро на данный момент - " + price_euro + " ₽")
 
-            time = soup.find("div", class_="b-weather_current_date").text       
-            sunrise_time = soup.find("span", class_="sunrise_time").text
-            sunset_time = soup.find("span", class_="sunset_time").text
+                updateUser()     
+          
+            case "🔁 Перевести":	
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
+                item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
+                item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
+                item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
+                item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+                markup.row(item1, item3)
+                markup.row(item2, item4)
+                markup.row(item5)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            temp = soup.find("span", class_="temperature").text
-            note = soup.find("span", class_="note").text
-            feelslike = soup.find("span", class_="feelslike").text
-            precipitation = soup.find("span", class_="precipitation").text
-            pressure = soup.find("span", class_="pressure").text
-            humidity = soup.find("span", class_="humidity").text        
+                updateUser()      
+          
+            case "🔙 Вернуться в Курс Валют":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("📈 Курс валют")
+                item2 = types.KeyboardButton("🔁 Перевести")
+                item3 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1, item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
 
-            bot.send_message(message.chat.id, "Погода в Москве\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))        
-        
-        # НОВОСИБИРСК       
-        elif message.text == "🌍 Новосибирск":
-        
-            url = "https://prognoz3.ru/россия/новосибирская-область/погода-в-новосибирске"
-            request = requests.get(url)
-            soup = BeautifulSoup(request.text, "html.parser")
+                updateUser()      
+          
+            case "💴 Рубли в 💵 Доллар":
+                bot.send_message(id, "Введите кол-во которое хотите перевести\n" + price_usd + " ₽" + " = 1 USD")
+                bot.register_next_step_handler(message, rubl_dollar)
 
-            time = soup.find("div", class_="b-weather_current_date").text       
-            sunrise_time = soup.find("span", class_="sunrise_time").text
-            sunset_time = soup.find("span", class_="sunset_time").text
+                updateUser()      
+          
+            case "💴 Рубли в 💶 Евро":
+                bot.send_message(id, "Введите кол-во которое хотите перевести\n" + price_euro + " ₽" + " = 1 EURO")
+                bot.register_next_step_handler(message, rubl_euro)
 
-            temp = soup.find("span", class_="temperature").text
-            note = soup.find("span", class_="note").text
-            feelslike = soup.find("span", class_="feelslike").text
-            precipitation = soup.find("span", class_="precipitation").text
-            pressure = soup.find("span", class_="pressure").text
-            humidity = soup.find("span", class_="humidity").text        
+                updateUser()
+          
+            case "💵 Доллар в 💴 Рубли":
+                bot.send_message(id, "Введите кол-во которое хотите перевести\n1 USD = " + price_usd + " ₽")
+                bot.register_next_step_handler(message, dollar_rubl)
 
-            bot.send_message(message.chat.id, "Погода в Новосибирске\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))      
-        
-        # РАНДОМНОЕ ЧИСЛО       
-        elif message.text == "🎰 Рандомное число":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🎲 От 0 до 10")
-            item2 = types.KeyboardButton("🎲 От 0 до 100")
-            item3 = types.KeyboardButton("🎲 От 0 до 1000")
-            item4 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            markup.row(item4)
-            bot.send_message(message.from_user.id, "🚩 Выберите диапазон", reply_markup = markup)       
-        
-        elif message.text == "🎲 От 0 до 10":
-            bot.send_message(message.chat.id, "*Вам выпало число -* " + str(random.randint(0,10)), parse_mode = "Markdown")     
-        
-        elif message.text == "🎲 От 0 до 100":
-            bot.send_message(message.chat.id, "*Вам выпало число -* " + str(random.randint(0,100)), parse_mode = "Markdown")        
-        
-        elif message.text == "🎲 От 0 до 1000":
-            bot.send_message(message.chat.id, "*Вам выпало число -* " + str(random.randint(0,1000)), parse_mode = "Markdown")       
-        
-        # СЫГРАТЬ С БОТОМ       
-        elif message.text == "🎡 Сыграть с ботом":
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
+                updateUser()
+          
+            case "💶 Евро в 💴 Рубли":
+                bot.send_message(id, "Введите кол-во которое хотите перевести\n1 EURO = " + price_euro + " ₽")
+                bot.register_next_step_handler(message, euro_rubl)
 
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
+                updateUser()
+          
+            # ПОГОДА        
+            case "🌍 Погода":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🌍 Омск")
+                item2 = types.KeyboardButton("🌍 Москва")
+                item3 = types.KeyboardButton("🌍 Новосибирск")
+                item4 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                markup.row(item4)
+                bot.send_message(id, "В каком городе хотите узнать погоду?", reply_markup = markup)        
+          
+                updateUser()
 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🎰 Угадай число")
-            item2 = types.KeyboardButton("🎲 Игра *Кости*")
-            item3 = types.KeyboardButton("🎳 Боулинг")
-            item4 = types.KeyboardButton("⚽️ Футбол")
-            item5 = types.KeyboardButton("🏀 Баскетбол")
-            item6 = types.KeyboardButton("🟡 Орел & Решка")
-            item7 = types.KeyboardButton("🎯 Дартс")
-            item8 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1)
-            markup.row(item2, item3, item4)
-            markup.row(item5, item6, item7)
-            markup.row(item8)
-            bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)       
-        
-        elif message.text == "🔙 Вернуться назад":
-            id = message.from_user.id
-            username = message.from_user.username
-            name = message.from_user.first_name
-            cursor.execute(f"SELECT id FROM users WHERE id = {id}")
-            result_id = cursor.fetchone()
+            # ОМСК      
+            case "🌍 Омск":
+                url = "https://prognoz3.ru/россия/омская-область/погода-в-омске"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")          
+                time = soup.find("div", class_="b-weather_current_date").text          
+                sunrise_time = soup.find("span", class_="sunrise_time").text
+                sunset_time = soup.find("span", class_="sunset_time").text      
+                temp = soup.find("span", class_="temperature").text
+                note = soup.find("span", class_="note").text
+                feelslike = soup.find("span", class_="feelslike").text
+                precipitation = soup.find("span", class_="precipitation").text
+                pressure = soup.find("span", class_="pressure").text
+                humidity = soup.find("span", class_="humidity").text                   
+                bot.send_message(id, "Погода в Омске\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))     
+          
+                updateUser()
 
-            if not result_id:
-                cursor.execute("INSERT INTO users(id, username, name, games, score) VALUES (%s, %s, %s, %s, %s)", (id, username, name, 0, 0))
-                cursor.execute("INSERT INTO date (id, games, score, games_darts, score_darts, games_number, score_number, games_kosti, score_kosti, games_bowling, score_bowling, games_football, score_football, games_basket, score_basket, games_moneta, score_moneta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-                db.commit()
+            # МОСКВА        
+            case "🌍 Москва":
+                url = "https://prognoz3.ru/россия/московская-область/погода-в-москве"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")          
+                time = soup.find("div", class_="b-weather_current_date").text       
+                sunrise_time = soup.find("span", class_="sunrise_time").text
+                sunset_time = soup.find("span", class_="sunset_time").text             
+                temp = soup.find("span", class_="temperature").text
+                note = soup.find("span", class_="note").text
+                feelslike = soup.find("span", class_="feelslike").text
+                precipitation = soup.find("span", class_="precipitation").text
+                pressure = soup.find("span", class_="pressure").text
+                humidity = soup.find("span", class_="humidity").text                   
+                bot.send_message(id, "Погода в Москве\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))        
+          
+                updateUser()
 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🎰 Угадай число")
-            item2 = types.KeyboardButton("🎲 Игра *Кости*")
-            item3 = types.KeyboardButton("🎳 Боулинг")
-            item4 = types.KeyboardButton("⚽️ Футбол")
-            item5 = types.KeyboardButton("🏀 Баскетбол")
-            item6 = types.KeyboardButton("🟡 Орел & Решка")
-            item7 = types.KeyboardButton("🎯 Дартс")
-            item8 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1) 
-            markup.row(item2, item3, item4)
-            markup.row(item5, item6, item7)
-            markup.row(item8)
-            bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)       
-        
-        # ОРЕЛ & РЕШКА      
-        elif message.text == "🟡 Орел & Решка": 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("Орел")
-            item2 = types.KeyboardButton("Решка")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Орел или Решка ?" , reply_markup = markup)			
-            bot.register_next_step_handler(message, moneta)      
-        
-        # ДАРТС     
-        elif message.text == "🎯 Дартс":
-            name = message.from_user.first_name     
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить дротик 🎯")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "🎯 Кидает дротик - " + str(name) , reply_markup = markup)        
-        
-        elif message.text == "Бросить дротик 🎯":
-            id = message.from_user.id
-            name = message.from_user.first_name
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+            # НОВОСИБИРСК       
+            case "🌍 Новосибирск":
+                url = "https://prognoz3.ru/россия/новосибирская-область/погода-в-новосибирске"
+                request = requests.get(url)
+                soup = BeautifulSoup(request.text, "html.parser")          
+                time = soup.find("div", class_="b-weather_current_date").text       
+                sunrise_time = soup.find("span", class_="sunrise_time").text
+                sunset_time = soup.find("span", class_="sunset_time").text             
+                temp = soup.find("span", class_="temperature").text
+                note = soup.find("span", class_="note").text
+                feelslike = soup.find("span", class_="feelslike").text
+                precipitation = soup.find("span", class_="precipitation").text
+                pressure = soup.find("span", class_="pressure").text
+                humidity = soup.find("span", class_="humidity").text                   
+                bot.send_message(id, "Погода в Новосибирске\n" + time + "\n\nТемпература:  " + str(temp) + " - " + str(note) + "\n" + str(feelslike) + "\n" + str(precipitation) + "\n" + str(pressure) + "\n" + str(humidity) + "\nВосход - " + str(sunrise_time) + "\nЗакат - " + str(sunset_time))      
+          
+                updateUser()
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+            # РАНДОМНОЕ ЧИСЛО       
+            case "🎰 Рандомное число":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🎲 От 0 до 10")
+                item2 = types.KeyboardButton("🎲 От 0 до 100")
+                item3 = types.KeyboardButton("🎲 От 0 до 1000")
+                item5 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                markup.row(item4)
+                markup.row(item5)
+                bot.send_message(id, "🚩 Выберите диапазон", reply_markup = markup)
 
-            cursor.execute(f"UPDATE date SET games_darts = games_darts + 1 WHERE id = {id}")
-            db.commit()
+                updateUser()      
+          
+            case "🎲 От 0 до 10":
+                bot.send_message(id, "*Вам выпало число -* " + str(random.randint(0,10)), parse_mode = "Markdown")     
 
-            ball = bot.send_dice(message.chat.id, '🎯')
-            sleep(5)
+                updateUser()
 
-            if ball.dice.value == 1:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " не попал")
-            elif ball.dice.value == 2:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в " + str(ball.dice.value))
-            elif ball.dice.value == 3:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в " + str(ball.dice.value))
-            elif ball.dice.value == 4:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в " + str(ball.dice.value))
-            elif ball.dice.value == 5:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в " + str(ball.dice.value))
-            elif ball.dice.value == 6:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в яблочко!")
+            case "🎲 От 0 до 100":
+                bot.send_message(id, "*Вам выпало число -* " + str(random.randint(0,100)), parse_mode = "Markdown")        
+          
+                updateUser()
 
-            sleep(0.5)	
-            bot.send_message(message.chat.id, "🎯 Кидает дротик БОТ")
-            sleep(1.5)
-            ball_two = bot.send_dice(message.chat.id, '🎯')
-            sleep(5)
+            case "🎲 От 0 до 1000":
+                bot.send_message(id, "*Вам выпало число -* " + str(random.randint(0,1000)), parse_mode = "Markdown")       
+          
+                updateUser()
 
-            if ball_two.dice.value == 1:
-                bot.send_message(message.chat.id, "БОТ не попал")
-            elif ball_two.dice.value == 2:
-                bot.send_message(message.chat.id, "БОТ попал в " + str(ball_two.dice.value))
-            elif ball_two.dice.value == 3:
-                bot.send_message(message.chat.id, "БОТ попал в " + str(ball_two.dice.value))
-            elif ball_two.dice.value == 4:
-                bot.send_message(message.chat.id, "БОТ попал в " + str(ball_two.dice.value))
-            elif ball_two.dice.value == 5:
-                bot.send_message(message.chat.id, "БОТ попал в " + str(ball_two.dice.value))
-            elif ball_two.dice.value == 6:
-                bot.send_message(message.chat.id, "БОТ попал в яблочко!")
+            # СЫГРАТЬ С БОТОМ
+            case "🎡 Сыграть с ботом":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🎰 Угадай число")
+                item2 = types.KeyboardButton("🎲 Игра *Кости*")
+                item3 = types.KeyboardButton("🎳 Боулинг")
+                item4 = types.KeyboardButton("⚽️ Футбол")
+                item5 = types.KeyboardButton("🏀 Баскетбол")
+                item6 = types.KeyboardButton("🟡 Орел & Решка")
+                item7 = types.KeyboardButton("🎯 Дартс")
+                item8 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1)
+                markup.row(item2, item3, item4)
+                markup.row(item5, item6, item7)
+                markup.row(item8)
+                bot.send_message(id, "🚩 Выберите игру", reply_markup = markup)
 
-            sleep(0.5)
-            bot.send_message(message.chat.id, "⏳ Идет подсчет результатов...")
-            sleep(0.5)
-            bot.send_message(message.chat.id, "⌛️ Идет подсчет результатов...")
-            sleep(0.5)
+                updateUser()    
+          
+            case "🔙 Вернуться назад":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🎰 Угадай число")
+                item2 = types.KeyboardButton("🎲 Игра *Кости*")
+                item3 = types.KeyboardButton("🎳 Боулинг")
+                item4 = types.KeyboardButton("⚽️ Футбол")
+                item5 = types.KeyboardButton("🏀 Баскетбол")
+                item6 = types.KeyboardButton("🟡 Орел & Решка")
+                item7 = types.KeyboardButton("🎯 Дартс")
+                item8 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1) 
+                markup.row(item2, item3, item4)
+                markup.row(item5, item6, item7)
+                markup.row(item8)
+                bot.send_message(id, "🚩 Выберите игру", reply_markup = markup)
 
-            if ball.dice.value > ball_two.dice.value:
-                id = message.from_user.id
-                cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score_darts = score_darts + 1 WHERE id = {id}")
-                db.commit()
+                updateUser()
+          
+            # ОРЕЛ & РЕШКА      
+            case "🟡 Орел & Решка": 
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("Орел")
+                item2 = types.KeyboardButton("Решка")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Орел или Решка ?" , reply_markup = markup)			
+                bot.register_next_step_handler(message, moneta)
 
-                bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🥳")
-            elif ball.dice.value == ball_two.dice.value:
-                bot.send_message(message.chat.id, "*Ничья!*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🤷‍♂")
-            else:
-                bot.send_message(message.chat.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "😞")
+                updateUser()
+          
+            # ДАРТС     
+            case "🎯 Дартс":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить дротик 🎯")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "🎯 Кидает дротик - " + str(name) , reply_markup = markup)
 
-            sleep(2)        
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить дротик 🎯")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)      
-        
-        # БАСКЕТБОЛ     
-        elif message.text == "🏀 Баскетбол":
-            name = message.from_user.first_name
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Кинуть мяч 🏀")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "🏀 Кидает мяч - " + str(name) , reply_markup = markup)       
-        
-        elif message.text == "Кинуть мяч 🏀":
-            id = message.from_user.id
-            name = message.from_user.first_name
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                updateUser()      
+          
+            case "Бросить дротик 🎯":
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_darts": 1}}
+                )
 
-            cursor.execute(f"UPDATE date SET games_basket = games_basket + 1 WHERE id = {id}")
-            db.commit()
+                ball = bot.send_dice(id, '🎯')
+                sleep(5)    
 
+                match ball.dice.value:
+                    case 1:
+                        bot.send_message(id, "Игрок " + str(name) + " не попал")
+                    case 2 | 3 | 4 | 5:
+                        bot.send_message(id, "Игрок " + str(name) + " попал в " + str(ball.dice.value))
+                    case 6:
+                        bot.send_message(id, "Игрок " + str(name) + " попал в яблочко!")  
 
-            ball = bot.send_dice(message.from_user.id, '🏀')
-            sleep(5)
-
-            if ball.dice.value > 3:
-                name = message.from_user.first_name
-                bot.send_message(message.from_user.id, "Игрок " + str(name) + " попал в кольцо, и он получает оценку " + str(ball.dice.value))
+                sleep(0.5)
+                bot.send_message(id, "🎯 Кидает дротик БОТ")
                 sleep(1.5)
-            else:
-                bot.send_message(message.from_user.id, "Игрок " + str(name) + " промахнулся")   
+                ball_two = bot.send_dice(id, '🎯')
+                sleep(5)         
 
-            bot.send_message(message.from_user.id, "🏀 Кидает мяч БОТ")
-            sleep(1.5)
-            ball_two = bot.send_dice(message.chat.id, '🏀')
-            sleep(5)
+                match ball_two.dice.value:
+                    case 1:
+                        bot.send_message(id, "БОТ не попал")
+                    case 2 | 3 | 4 | 5:
+                        bot.send_message(id, "БОТ попал в " + str(ball_two.dice.value))
+                    case 6:
+                        bot.send_message(id, "БОТ попал в яблочко!")   
+       
+                sleep(0.5)
+                bot.send_message(id, "⏳ Идет подсчет результатов...")
+                sleep(0.5)
+                bot.send_message(id, "⌛️ Идет подсчет результатов...")
+                sleep(0.5)
 
-            if ball_two.dice.value > 3:
-                bot.send_message(message.from_user.id, "БОТ попал в кольцо, и он получает оценку " + str(ball_two.dice.value))
-                sleep(1.5)
-            else:
-                bot.send_message(message.from_user.id, "БОТ промахнулся")
+                if ball.dice.value > ball_two.dice.value:
+                    users.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1}}
+                    )
 
-            bot.send_message(message.from_user.id, "⏳ Идет подсчет результатов...")
-            sleep(1.5)
-            bot.send_message(message.chat.id, "⌛️ Идет подсчет результатов...")
-           
-            if ball.dice.value > 3:
-                if ball_two.dice.value > 3:
-                    if ball.dice.value > ball_two.dice.value:
-                        id = message.from_user.id
-                        cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                        cursor.execute(f"UPDATE date SET score_basket = score_basket + 1 WHERE id = {id}")
-                        db.commit()
+                    date.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1, "score_darts": 1}}
+                    )
 
-                        bot.send_message(message.from_user.id, "*Победил - *" + str(name), parse_mode = "Markdown")
-                        bot.send_message(message.from_user.id, "🥳")
-                    elif ball.dice.value == ball_two.dice.value:
-                        bot.send_message(message.from_user.id, "*Ничья!*", parse_mode = "Markdown")
-                        bot.send_message(message.chat.id, "🤷‍♂")
-                    else:
-                        bot.send_message(message.from_user.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                        bot.send_message(message.from_user.id, "😞")
+                    bot.send_message(id, "*Победил - *" + str(name), parse_mode = "Markdown")
+                    bot.send_message(id, "🥳")
+                elif ball.dice.value == ball_two.dice.value:
+                    bot.send_message(id, "*Ничья!*", parse_mode = "Markdown")
+                    bot.send_message(id, "🤷‍♂")
                 else:
-                    id = message.from_user.id
-                    cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                    cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                    cursor.execute(f"UPDATE date SET score_basket = score_basket + 1 WHERE id = {id}")
-                    db.commit()
+                    bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                    bot.send_message(id, "😞")
 
-                    bot.send_message(message.from_user.id, "*Победил - *" + str(name), parse_mode="Markdown")
-                    bot.send_message(message.chat.id, "🥳")
-            elif ball.dice.value < 3:
-                if ball_two.dice.value > 3:
-                    bot.send_message(message.from_user.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                    bot.send_message(message.from_user.id, "😞")
-                else:
-                    bot.send_message(message.from_user.id, "Никто не попал. Ничья!")
-                    bot.send_message(message.chat.id, "🤷‍♂")
-            else:
-                bot.send_message(message.from_user.id, "Никто не попал. Ничья!")
-                bot.send_message(message.from_user.id, "🤷‍♂")
+                sleep(2)
 
-            sleep(1)        
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Кинуть мяч 🏀")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.from_user.id, "Сыграете еще раз?" , reply_markup = markup)      
-        
-        # ФУТБОЛ        
-        elif message.text == "⚽️ Футбол":
-            name = message.from_user.first_name     
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Пнуть мяч ⚽️")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "⚽️ Пинает мяч - " + str(name) , reply_markup = markup)       
-        
-        elif message.text == "Пнуть мяч ⚽️":
-            id = message.from_user.id
-            name = message.from_user.first_name
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить дротик 🎯")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Сыграете еще раз?" , reply_markup = markup)
+                
+                updateUser() 
+          
+            # БАСКЕТБОЛ     
+            case "🏀 Баскетбол":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Кинуть мяч 🏀")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "🏀 Кидает мяч - " + str(name) , reply_markup = markup)
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                updateUser()     
+          
+            case "Кинуть мяч 🏀":
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
 
-            cursor.execute(f"UPDATE date SET games_football = games_football + 1 WHERE id = {id}")
-            db.commit()
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_basket": 1}}
+                )
 
-            ball = bot.send_dice(message.chat.id, '⚽️')
-            sleep(5)
+                ball = bot.send_dice(id, '🏀')
+                sleep(5)  
 
-            if ball.dice.value > 2:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " попал в ворота, и он получает оценку " + str(ball.dice.value))
-                sleep(1.5)
-            else:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " промахнулся")
-                sleep(1.5)
-
-            bot.send_message(message.chat.id, "⚽️ Пинает мяч БОТ")
-            sleep(1.5)
-            ball_two = bot.send_dice(message.chat.id, '⚽️')
-            sleep(5)
-   
-            if ball_two.dice.value > 2:
-                bot.send_message(message.chat.id, "БОТ попал в ворота, и он получает оценку " + str(ball_two.dice.value))
-                sleep(1.5)
-            else:
-                bot.send_message(message.chat.id, "БОТ промахнулся")
-
-            sleep(0.5)
-            bot.send_message(message.chat.id, "⏳ Идет подсчет результатов...")
-            sleep(0.5)
-            bot.send_message(message.chat.id, "⌛️ Идет подсчет результатов...")
-            sleep(0.5)
-
-            if ball.dice.value > 2:
-                if ball_two.dice.value > 2:
-                    if ball.dice.value > ball_two.dice.value:
-                        id = message.from_user.id
-                        name = message.from_user.first_name
-                        cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                        cursor.execute(f"UPDATE date SET score_football = score_football + 1 WHERE id = {id}")
-                        db.commit()
-
-                        bot.send_message(message.chat.id, "*Победил - *" + str(name) , parse_mode = "Markdown")
-                        bot.send_message(message.chat.id, "🥳")
-                    elif ball.dice.value == ball_two.dice.value:
-                        bot.send_message(message.chat.id, "*Ничья!*", parse_mode = "Markdown")
-                        bot.send_message(message.chat.id, "🤷‍♂")
-                    else:
-                        bot.send_message(message.chat.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                        bot.send_message(message.chat.id, "😞")
-                else:
-                    id = message.from_user.id
+                if ball.dice.value > 3:
                     name = message.from_user.first_name
-                    cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                    cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                    cursor.execute(f"UPDATE date SET score_football = score_football + 1 WHERE id = {id}")
-                    db.commit()
-
-                    bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
-                    bot.send_message(message.chat.id, "🥳")
-            elif ball.dice.value < 2:
-                if ball_two.dice.value > 2:
-                    bot.send_message(message.chat.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                    bot.send_message(message.chat.id, "😞")
+                    bot.send_message(id, "Игрок " + str(name) + " попал в кольцо, и он получает оценку " + str(ball.dice.value))
+                    sleep(1.5)
                 else:
-                    bot.send_message(message.chat.id, "Никто не попал. Ничья!")
-                    bot.send_message(message.chat.id, "🤷‍♂")
-            else:
-                bot.send_message(message.chat.id, "Никто не попал. Ничья!")
-                bot.send_message(message.chat.id, "🤷‍♂")
+                    bot.send_message(id, "Игрок " + str(name) + " промахнулся")
 
-            sleep(1.5)
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Пнуть мяч ⚽️")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)      
-        
-        # ИГРА "БОУЛИНГ"        
-        elif message.text == "🎳 Боулинг":
-            name = message.from_user.first_name     
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить шар 🎳")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.from_user.id, "🎳 Бросает шар - " + str(name) , reply_markup = markup)     
-        
-        elif message.text == "Бросить шар 🎳":
-            id = message.from_user.id
-            name = message.from_user.first_name
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                bot.send_message(id, "🏀 Кидает мяч БОТ")
+                sleep(1.5)
+                ball_two = bot.send_dice(id, '🏀')
+                sleep(5)     
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                if ball_two.dice.value > 3:
+                    bot.send_message(id, "БОТ попал в кольцо, и он получает оценку " + str(ball_two.dice.value))
+                    sleep(1.5)
+                else:
+                    bot.send_message(id, "БОТ промахнулся")
 
-            cursor.execute(f"UPDATE date SET games_bowling = games_bowling + 1 WHERE id = {id}")
-            db.commit()
+                bot.send_message(id, "⏳ Идет подсчет результатов...")
+                sleep(1.5)
+                bot.send_message(id, "⌛️ Идет подсчет результатов...")
+          
+                if ball.dice.value > 3:
+                    if ball_two.dice.value > 3:
+                        if ball.dice.value > ball_two.dice.value:
+                            users.update_one(
+                                {"id": id},
+                                {"$inc": {"score": 1}}
+                            )
 
-            ball = bot.send_dice(message.chat.id, '🎳')
-            sleep(5)
+                            date.update_one(
+                                {"id": id},
+                                {"$inc": {"score": 1, "score_basket": 1}}
+                            )
 
-            if ball.dice.value == 1:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " промахнулся")
-            elif ball.dice.value == 2:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " сбил 1 кеглю")
-            elif ball.dice.value == 3:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " сбил " + str(ball.dice.value) + " кегли")
-            elif ball.dice.value == 4:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " сбил " + str(ball.dice.value) + " кегли")
-            elif ball.dice.value == 5:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " сбил " + str(ball.dice.value) + " кеглей")
-            elif ball.dice.value == 6:
-                bot.send_message(message.chat.id, "Игрок " + str(name) + " выбил STRIKE!!")  
+                            bot.send_message(id, "*Победил - *" + str(name), parse_mode = "Markdown")
+                            bot.send_message(id, "🥳")
+                        elif ball.dice.value == ball_two.dice.value:
+                            bot.send_message(id, "*Ничья!*", parse_mode = "Markdown")
+                            bot.send_message(id, "🤷‍♂")
+                        else:
+                            bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                            bot.send_message(id, "😞")
+                    else:
+                        users.update_one(
+                            {"id": id},
+                            {"$inc": {"score": 1}}
+                        )
 
-            sleep(1.5)
-            bot.send_message(message.chat.id, "🎳 Бросает шар БОТ")
-            sleep(1.5)
-            ball_two = bot.send_dice(message.chat.id, '🎳')
-            sleep(5)
+                        date.update_one(
+                            {"id": id},
+                            {"$inc": {"score": 1, "score_basket": 1}}
+                        )
 
-            if ball_two.dice.value == 1:
-                bot.send_message(message.chat.id, "БОТ промахнулся")
-            elif ball_two.dice.value == 2:
-                bot.send_message(message.chat.id, "БОТ сбил 1 кеглю")
-            elif ball_two.dice.value == 3:
-                bot.send_message(message.chat.id, "БОТ сбил " + str(ball_two.dice.value) + " кегли")
-            elif ball_two.dice.value == 4:
-                bot.send_message(message.chat.id, "БОТ сбил " + str(ball_two.dice.value) + " кегли")
-            elif ball_two.dice.value == 5:
-                bot.send_message(message.chat.id, "БОТ сбил " + str(ball_two.dice.value) + " кеглей")
-            elif ball_two.dice.value == 6:
-                bot.send_message(message.chat.id, "БОТ выбил STRIKE!!")
+                        bot.send_message(id, "*Победил - *" + str(name), parse_mode="Markdown")
+                        bot.send_message(id, "🥳")
+                elif ball.dice.value < 3:
+                    if ball_two.dice.value > 3:
+                        bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                        bot.send_message(id, "😞")
+                    else:
+                        bot.send_message(id, "Никто не попал. Ничья!")
+                        bot.send_message(id, "🤷‍♂")
+                else:
+                    bot.send_message(id, "Никто не попал. Ничья!")
+                    bot.send_message(id, "🤷‍♂")    
 
-            sleep(1)
-            bot.send_message(message.chat.id, "⏳ Идет подсчет результатов...")
-            sleep(1)
-            bot.send_message(message.chat.id, "⌛️ Идет подсчет результатов...")
-            sleep(0.5)
+                sleep(1)
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Кинуть мяч 🏀")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Сыграете еще раз?" , reply_markup = markup)
 
-            if ball.dice.value > ball_two.dice.value:
-                id = message.from_user.id
-                name = message.from_user.first_name
-                cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score_bowling = score_bowling + 1 WHERE id = {id}")
-                db.commit()
+                updateUser()      
+          
+            # ФУТБОЛ        
+            case "⚽️ Футбол":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Пнуть мяч ⚽️")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "⚽️ Пинает мяч - " + str(name) , reply_markup = markup)
 
-                bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🥳")
-            elif ball.dice.value == ball_two.dice.value:
-                bot.send_message(message.chat.id, "*Ничья!*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🤷‍♂")
-            else:
-                bot.send_message(message.chat.id, "😑 *Победил БОТ*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "😞")     
-            
-            sleep(2)        
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить шар 🎳")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)      
-        
-        # ИГРА *КОСТИ*      
-        elif message.text == "🎲 Игра *Кости*":
-            name = message.from_user.first_name     
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить кубик 🎲")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "🎲 Бросает кубик - " + str(name) , reply_markup = markup)        
-        
-        elif message.text == "Бросить кубик 🎲":
-            id = message.from_user.id
-            name = message.from_user.first_name
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                updateUser()      
+          
+            case "Пнуть мяч ⚽️":
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_football": 1}}
+                )
 
-            cursor.execute(f"UPDATE date SET games_kosti = games_kosti + 1 WHERE id = {id}")
-            db.commit()
+                ball = bot.send_dice(id, '⚽️')
+                sleep(5)         
 
-            cube = bot.send_dice(message.chat.id)
-            sleep(5)
-            bot.send_message(message.chat.id, "Игроку " + str(name) + " выпало число - " + str(cube.dice.value))
-            sleep(1.5)
-            bot.send_message(message.chat.id, "🎲 Бросает кубик БОТ")
-            sleep(1.5)
-            cube_two = bot.send_dice(message.chat.id)
-            sleep(5)
-            bot.send_message(message.chat.id, "БОТ выбил число - " + str(cube_two.dice.value))
-            sleep(1)
-            bot.send_message(message.chat.id, "⏳ Идет подсчет результатов...")
-            sleep(1)
-            bot.send_message(message.chat.id, "⌛️ Идет подсчет результатов...")
-            sleep(2)        
-            
-            if cube.dice.value > cube_two.dice.value:
-                id = message.from_user.id
-                name = message.from_user.first_name
-                cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score_kosti = score_kosti + 1 WHERE id = {id}")
-                db.commit()
+                if ball.dice.value > 2:
+                    bot.send_message(id, "Игрок " + str(name) + " попал в ворота, и он получает оценку " + str(ball.dice.value))
+                    sleep(1.5)
+                else:
+                    bot.send_message(id, "Игрок " + str(name) + " промахнулся")
+                    sleep(1.5)
 
-                bot.send_message(message.chat.id, "*Победил - *" + str(name), parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🥳")
-            elif cube.dice.value == cube_two.dice.value:
-                bot.send_message(message.chat.id, "*Ничья!*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "🤷‍♂")
-            else:
-                bot.send_message(message.chat.id, "*Победил БОТ*", parse_mode = "Markdown")
-                bot.send_message(message.chat.id, "😞")     
-            
-            sleep(1)        
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Бросить кубик 🎲")
-            item2 = types.KeyboardButton("🔙 Вернуться назад")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Сыграете еще раз?" , reply_markup = markup)
-        
-        # УГАДАЙ ЧИСЛО      
-        elif message.text == "🎰 Угадай число":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("Да)")
-            item2 = types.KeyboardButton("Нет)")
-            markup.row(item1)
-            markup.row(item2)
-            bot.send_message(message.chat.id, "Хотите сыграть с ботом в Угадай число?\nПравила игры максимально просты.\nБот загадывает число от 1 до 10, а вам нужно угадать это число, даётся 5 попыток!", reply_markup = markup )        
-        
-        elif message.text == "Да)":
-            id = message.from_user.id
-            cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                bot.send_message(id, "⚽️ Пинает мяч БОТ")
+                sleep(1.5)
+                ball_two = bot.send_dice(id, '⚽️')
+                sleep(5)
+          
+                if ball_two.dice.value > 2:
+                    bot.send_message(id, "БОТ попал в ворота, и он получает оценку " + str(ball_two.dice.value))
+                    sleep(1.5)
+                else:
+                    bot.send_message(id, "БОТ промахнулся")
 
-            cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-            db.commit()
+                sleep(0.5)
+                bot.send_message(id, "⏳ Идет подсчет результатов...")
+                sleep(0.5)
+                bot.send_message(id, "⌛️ Идет подсчет результатов...")
+                sleep(0.5)  
 
-            cursor.execute(f"UPDATE date SET games_number = games_number + 1 WHERE id = {id}")
-            db.commit()
+                if ball.dice.value > 2:
+                    if ball_two.dice.value > 2:
+                        if ball.dice.value > ball_two.dice.value:
+                            users.update_one(
+                                {"id": id},
+                                {"$inc": {"score": 1}}
+                            )
 
-            global counter
-            global random_number        
-            sleep(0.5)
-            bot.send_message(message.chat.id, "Отлично. Тогда начнем")
-            sleep(0.5)
-            bot.send_message(message.chat.id, "Бот загадал число. У вас 5 попыток!")        
-            random_number = random.randint(1, 10)
-            counter = 5     
-            sleep(0.5)      
-            
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("1")
-            item2 = types.KeyboardButton("2")
-            item3 = types.KeyboardButton("3")
-            item4 = types.KeyboardButton("4")
-            item5 = types.KeyboardButton("5")
-            item6 = types.KeyboardButton("6")
-            item7 = types.KeyboardButton("7")
-            item8 = types.KeyboardButton("8")
-            item9 = types.KeyboardButton("9")
-            item10 = types.KeyboardButton("10")     
-            markup.row(item1, item2, item3)
-            markup.row(item4, item5, item6)
-            markup.row(item7, item8, item9)
-            markup.row(item10)      
-            bot.send_message(message.chat.id, "Выберите число", reply_markup = markup)
-            bot.register_next_step_handler(message, number)
+                            date.update_one(
+                                {"id": id},
+                                {"$inc": {"score": 1, "score_football": 1}}
+                            )
 
-        elif message.text == "Нет)":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-            item1 = types.KeyboardButton("🎰 Угадай число")
-            item2 = types.KeyboardButton("🎲 Игра *Кости*")
-            item3 = types.KeyboardButton("🎳 Боулинг")
-            item4 = types.KeyboardButton("⚽️ Футбол")
-            item5 = types.KeyboardButton("🏀 Баскетбол")
-            item6 = types.KeyboardButton("🟡 Орел & Решка")
-            item7 = types.KeyboardButton("🎯 Дартс")
-            item8 = types.KeyboardButton("🔙 Вернуться в Функции")
-            markup.row(item1) 
-            markup.row(item2, item3, item4)
-            markup.row(item5, item6, item7)
-            markup.row(item8)
-            bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)        
-        
-        # ОТЧЕТ О ДОСТАВКЕ СООБЩЕНИЯ "ПРЕДЛОЖЕНИЯ И УЛУЧШЕНИЯ"      
-        elif message.text == "Все верно ✅":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            bot.send_message(message.chat.id, "Успешно! Ваше сообщение доставлено!  📦", reply_markup = markup)
-            chat_id = "1277445345"
-            bot.send_message(chat_id, "Предложение по улучшения от " + str(message.from_user.first_name) + " (@" + str(message.from_user.username) + " ) " + "\n\n" + up_text, reply_markup = markup)       
-        
-        elif message.text == "Хочу переписать 📄":
-            bot.send_message(message.chat.id, "Напишите ваши улучшения в чат! ⤵️")
-            bot.register_next_step_handler(message, up_bot)
-        
-        elif message.text == "Отмена ⛔️":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
-            item1 = types.KeyboardButton("📄 Информация")
-            item2 = types.KeyboardButton("📝 Предложения и улучшения")
-            item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
-            markup.row(item1)
-            markup.row(item2)
-            markup.row(item3)
-            bot.send_message(message.from_user.id, "🚩 Выберите действие", reply_markup = markup)	
+                            bot.send_message(id, "*Победил - *" + str(name) , parse_mode = "Markdown")
+                            bot.send_message(id, "🥳")
+                        elif ball.dice.value == ball_two.dice.value:
+                            bot.send_message(id, "*Ничья!*", parse_mode = "Markdown")
+                            bot.send_message(id, "🤷‍♂")
+                        else:
+                            bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                            bot.send_message(id, "😞")
+                    else:
+                        users.update_one(
+                            {"id": id},
+                            {"$inc": {"score": 1}}
+                        )
 
-		# ИНАЧЕ
-        else:
-            bot.send_message(message.chat.id, "🗿 Я тебя не понимаю. Напиши /start или /help")	
+                        date.update_one(
+                            {"id": id},
+                            {"$inc": {"score": 1, "score_football": 1}}
+                        )
 
+                        bot.send_message(id, "*Победил - *" + str(name), parse_mode = "Markdown")
+                        bot.send_message(id, "🥳")
+                elif ball.dice.value < 2:
+                    if ball_two.dice.value > 2:
+                        bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                        bot.send_message(id, "😞")
+                    else:
+                        bot.send_message(id, "Никто не попал. Ничья!")
+                        bot.send_message(id, "🤷‍♂")
+                else:
+                    bot.send_message(id, "Никто не попал. Ничья!")
+                    bot.send_message(id, "🤷‍♂")
 
-# ОРЕЛ & РЕШКА
+                sleep(1.5)
+
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Пнуть мяч ⚽️")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Сыграете еще раз?" , reply_markup = markup)
+
+                updateUser()   
+          
+            # ИГРА "БОУЛИНГ"        
+            case "🎳 Боулинг":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить шар 🎳")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "🎳 Бросает шар - " + str(name) , reply_markup = markup)     
+          
+                updateUser()
+
+            case "Бросить шар 🎳":
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
+
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_bowling": 1}}
+                )
+
+                ball = bot.send_dice(id, '🎳')
+                sleep(5)
+
+                match ball.dice.value:
+                    case 1:
+                        bot.send_message(id, "Игрок " + str(name) + " промахнулся")
+                    case 2:
+                        bot.send_message(id, "Игрок " + str(name) + " сбил 1 кеглю")
+                    case 3 | 4:
+                        bot.send_message(id, "Игрок " + str(name) + " сбил " + str(ball.dice.value) + " кегли")
+                    case 5:
+                        bot.send_message(id, "Игрок " + str(name) + " сбил " + str(ball.dice.value) + " кеглей")
+                    case 6:
+                        bot.send_message(id, "Игрок " + str(name) + " выбил STRIKE!!") 
+           
+                sleep(1.5)
+                bot.send_message(id, "🎳 Бросает шар БОТ")
+                sleep(1.5)
+                ball_two = bot.send_dice(id, '🎳')
+                sleep(5)
+
+                match ball_two.dice.value:
+                    case 1:
+                        bot.send_message(id, "БОТ промахнулся")
+                    case 2:
+                        bot.send_message(id, "БОТ сбил 1 кеглю")
+                    case 3 | 4:
+                        bot.send_message(id, "БОТ сбил " + str(ball_two.dice.value) + " кегли")
+                    case 5:
+                        bot.send_message(id, "БОТ сбил " + str(ball_two.dice.value) + " кеглей")
+                    case 6:
+                        bot.send_message(id, "БОТ выбил STRIKE!!")
+
+                sleep(1)
+                bot.send_message(id, "⏳ Идет подсчет результатов...")
+                sleep(1)
+                bot.send_message(id, "⌛️ Идет подсчет результатов...")
+                sleep(0.5)
+
+                if ball.dice.value > ball_two.dice.value:
+                    users.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1}}
+                    )
+
+                    date.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1, "score_bowling": 1}}
+                    )
+
+                    bot.send_message(id, "*Победил - *" + str(name), parse_mode = "Markdown")
+                    bot.send_message(id, "🥳")
+                elif ball.dice.value == ball_two.dice.value:
+                    bot.send_message(id, "*Ничья!*", parse_mode = "Markdown")
+                    bot.send_message(id, "🤷‍♂")
+                else:
+                    bot.send_message(id, "😑 *Победил БОТ*", parse_mode = "Markdown")
+                    bot.send_message(id, "😞")     
+              
+                sleep(2)
+
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить шар 🎳")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Сыграете еще раз?" , reply_markup = markup)
+
+                updateUser()
+          
+            # ИГРА *КОСТИ*      
+            case "🎲 Игра *Кости*":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить кубик 🎲")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "🎲 Бросает кубик - " + str(name) , reply_markup = markup)
+
+                updateUser()     
+          
+            case "Бросить кубик 🎲":
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
+
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_kosti": 1}}
+                )
+
+                cube = bot.send_dice(id)
+                sleep(5)
+                bot.send_message(id, "Игроку " + str(name) + " выпало число - " + str(cube.dice.value))
+                sleep(1.5)
+                bot.send_message(id, "🎲 Бросает кубик БОТ")
+                sleep(1.5)
+
+                cube_two = bot.send_dice(id)
+                sleep(5)
+                bot.send_message(id, "БОТ выбил число - " + str(cube_two.dice.value))
+                sleep(1)
+                bot.send_message(id, "⏳ Идет подсчет результатов...")
+                sleep(1)
+                bot.send_message(id, "⌛️ Идет подсчет результатов...")
+                sleep(2)        
+              
+                if cube.dice.value > cube_two.dice.value:
+                    users.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1}}
+                    )
+
+                    date.update_one(
+                        {"id": id},
+                        {"$inc": {"score": 1, "score_kosti": 1}}
+                    )
+
+                    bot.send_message(id, "*Победил - *" + str(name), parse_mode = "Markdown")
+                    bot.send_message(id, "🥳")
+                elif cube.dice.value == cube_two.dice.value:
+                    bot.send_message(id, "*Ничья!*", parse_mode = "Markdown")
+                    bot.send_message(id, "🤷‍♂")
+                else:
+                    bot.send_message(id, "*Победил БОТ*", parse_mode = "Markdown")
+                    bot.send_message(id, "😞")     
+              
+                sleep(1)
+
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Бросить кубик 🎲")
+                item2 = types.KeyboardButton("🔙 Вернуться назад")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Сыграете еще раз?" , reply_markup = markup)
+
+                updateUser()
+          
+            # УГАДАЙ ЧИСЛО      
+            case "🎰 Угадай число":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("Да")
+                item2 = types.KeyboardButton("Нет")
+                markup.row(item1)
+                markup.row(item2)
+                bot.send_message(id, "Хотите сыграть с ботом в Угадай число?\nПравила игры максимально просты.\nБот загадывает число от 1 до 10, а вам нужно угадать это число, даётся 5 попыток!", reply_markup = markup )        
+          
+                updateUser()
+
+            case "Да":
+                global counter, random_number
+
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1}}
+                )
+
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"games": 1, "games_number": 1}}
+                )
+
+                sleep(0.5)
+                bot.send_message(id, "Отлично. Тогда начнем")
+                sleep(0.5)
+                bot.send_message(id, "Бот загадал число. У вас 5 попыток!")        
+                random_number = random.randint(1, 10)
+                counter = 5  
+                sleep(0.5)     
+              
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("1")
+                item2 = types.KeyboardButton("2")
+                item3 = types.KeyboardButton("3")
+                item4 = types.KeyboardButton("4")
+                item5 = types.KeyboardButton("5")
+                item6 = types.KeyboardButton("6")
+                item7 = types.KeyboardButton("7")
+                item8 = types.KeyboardButton("8")
+                item9 = types.KeyboardButton("9")
+                item10 = types.KeyboardButton("10")     
+                markup.row(item1, item2, item3)
+                markup.row(item4, item5, item6)
+                markup.row(item7, item8, item9)
+                markup.row(item10)
+                bot.send_message(id, "Выберите число", reply_markup = markup)
+                bot.register_next_step_handler(message, number)
+
+                updateUser()
+
+            case "Нет":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                item1 = types.KeyboardButton("🎰 Угадай число")
+                item2 = types.KeyboardButton("🎲 Игра *Кости*")
+                item3 = types.KeyboardButton("🎳 Боулинг")
+                item4 = types.KeyboardButton("⚽️ Футбол")
+                item5 = types.KeyboardButton("🏀 Баскетбол")
+                item6 = types.KeyboardButton("🟡 Орел & Решка")
+                item7 = types.KeyboardButton("🎯 Дартс")
+                item8 = types.KeyboardButton("🔙 Вернуться в Функции")
+                markup.row(item1) 
+                markup.row(item2, item3, item4)
+                markup.row(item5, item6, item7)
+                markup.row(item8)
+                bot.send_message(id, "🚩 Выберите игру", reply_markup = markup)
+
+                updateUser()       
+          
+            # ОТЧЕТ О ДОСТАВКЕ СООБЩЕНИЯ "ПРЕДЛОЖЕНИЯ И УЛУЧШЕНИЯ"      
+            case "Все верно ✅":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                bot.send_message(id, "Успешно! Ваше сообщение доставлено!  📦", reply_markup = markup)
+                chat_id = "1277445345"
+                bot.send_message(chat_id, "Предложение по улучшения от " + str(name) + " (@" + str(username) + " ) " + "\n\n" + up_text, reply_markup = markup)       
+          
+                updateUser()
+
+            case "Хочу переписать 📄":
+                bot.send_message(id, "Напишите ваши улучшения в чат! ⤵️")
+                bot.register_next_step_handler(message, up_bot)
+
+                updateUser()
+          
+            case "Отмена ⛔️":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
+                item1 = types.KeyboardButton("📄 Информация")
+                item2 = types.KeyboardButton("📝 Предложения и улучшения")
+                item3 = types.KeyboardButton("📍 Вернуться в Главное меню")
+                markup.row(item1)
+                markup.row(item2)
+                markup.row(item3)
+                bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
+
+                updateUser()            
+
+            case _:
+                bot.send_message(id, "🗿 Я тебя не понимаю. Напиши /start")
+
+                updateUser()
+
+def updateUser():
+    users.update_one(
+        {"id": id},
+        {"$set": {"lastActive": str(lastActive)}}
+    )
+
+    checkID = users.find_one({"id": id})
+
+    if not checkID:
+        users.insert_one({
+            "id" : id,
+            "username" : username,
+            "name" : name,
+            "lastActive": str(lastActive),
+            "games" : 0,
+            "score": 0
+        })
+
+        date.insert_one({
+            "id": id,
+            "games": 0,
+            "score": 0,
+
+            "games_darts": 0,
+            "score_darts": 0,
+
+            "games_number": 0,
+            "score_number": 0,
+
+            "games_kosti": 0,
+            "score_kosti": 0,
+
+            "games_bowling": 0,
+            "score_bowling": 0,
+
+            "games_football": 0,
+            "score_football": 0,
+
+            "games_basket": 0,
+            "score_basket": 0,
+
+            "games_moneta": 0,
+            "score_moneta": 0,
+        })
 
 def moneta(message):
-    id = message.from_user.id
-    name = message.from_user.first_name
-    cursor.execute(f"UPDATE users SET games = games + 1 WHERE id = {id}")
-    db.commit()
-    
-    cursor.execute(f"UPDATE date SET games = games + 1 WHERE id = {id}")
-    db.commit()
-    
-    cursor.execute(f"UPDATE date SET games_moneta = games_moneta + 1 WHERE id = {id}")
-    db.commit()
+    users.update_one(
+        {"id": id},
+        {"$inc": {"games": 1}}
+    )
+
+    date.update_one(
+        {"id": id},
+        {"$inc": {"games": 1, "games_moneta": 1}}
+    )
 
     moneta = ["Орел", "Решка"]
     moneta_random = random.choice(moneta)
-
     moneta_user = message.text
-
     stick = open("image/AnimatedSticker.tgs", "rb")
-    bot.send_sticker(message.chat.id, stick)
+    bot.send_sticker(id, stick)
     sleep(3)
-    bot.send_message(message.chat.id, str(moneta_random))
+    bot.send_message(id, str(moneta_random))
     sleep(1)
-        
+      
     if moneta_random == moneta_user:
-        id = message.from_user.id
-        name = message.from_user.first_name
-        cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-        cursor.execute(f"UPDATE date SET score_moneta = score_moneta + 1 WHERE id = {id}")
-        cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-        db.commit()
-        
-        bot.send_message(message.chat.id, "Вы победили!")
+        users.update_one(
+            {"id": id},
+            {"$inc": {"score": 1}}
+        )
+
+        date.update_one(
+            {"id": id},
+            {"$inc": {"score": 1, "score_moneta": 1}}
+        )
+
+        bot.send_message(id, "Вы победили!")
         sleep(2)
+
         markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
         item1 = types.KeyboardButton("🎰 Угадай число")
         item2 = types.KeyboardButton("🎲 Игра *Кости*")
@@ -1456,9 +1618,9 @@ def moneta(message):
         markup.row(item2, item3, item4)
         markup.row(item5, item6, item7)
         markup.row(item8)
-        bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)  
+        bot.send_message(id, "🚩 Выберите игру", reply_markup = markup)  
     else:
-        bot.send_message(message.chat.id, "Вы проиграли!")
+        bot.send_message(id, "Вы проиграли!")
         sleep(2)
         markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
         item1 = types.KeyboardButton("🎰 Угадай число")
@@ -1473,72 +1635,96 @@ def moneta(message):
         markup.row(item2, item3, item4)
         markup.row(item5, item6, item7)
         markup.row(item8)
-        bot.send_message(message.from_user.id, "🚩 Выберите игру", reply_markup = markup)  
-
-
+        bot.send_message(id, "🚩 Выберите игру", reply_markup = markup) 
 
 def dollar_rubl(message):
-    dollar = 685468974538976564
-    while dollar == 685468974538976564:
-        try:
-            dollar = int(message.text)
-            result = int(dollar) * float(price_usd)
-            bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *₽*", parse_mode = "Markdown")
-        except Exception:
-            bot.send_message(message.chat.id, "Нужно вводить цифрами.")
-            break
-    if dollar == 685468974538976564:
+    number = message.text
+    try:
+        number = int(message.text)
+        result = int(number) / float(price_usd)
+        bot.send_message(id, "*Результат -* " + str('{:.2f}'.format(result)) + " *USD*", parse_mode = "Markdown")
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
+        item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
+        item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
+        item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
+        item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+        markup.row(item1, item3)
+        markup.row(item2, item4)
+        markup.row(item5)
+        bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
+    except:
+        bot.send_message(id, "Нужно вводить значения цифрами.")
         bot.register_next_step_handler(message, dollar_rubl)
 
 def rubl_dollar(message):
-	rubl = 685468974538976564
-	while rubl == 685468974538976564:
-		try:
-			rubl = int(message.text)
-			result = int(rubl) / float(price_usd)
-			bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *USD*", parse_mode = "Markdown")
-		except Exception:
-			bot.send_message(message.chat.id, "Нужно вводить цифрами.")
-			break
-	if rubl == 685468974538976564:
-		bot.register_next_step_handler(message, rubl_dollar)
-		
+    number = message.text
+    try:
+        number = int(message.text)
+        result = int(number) / float(price_usd)
+        bot.send_message(id, "*Результат -* " + str('{:.2f}'.format(result)) + " *USD*", parse_mode = "Markdown")
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
+        item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
+        item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
+        item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
+        item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+        markup.row(item1, item3)
+        markup.row(item2, item4)
+        markup.row(item5)
+        bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
+    except:
+        bot.send_message(id, "Нужно вводить значения цифрами.")
+        bot.register_next_step_handler(message, rubl_dollar)
 
 def euro_rubl(message):
-	euro = 685468974538976564
-	while euro == 685468974538976564:
-		try:
-			euro = int(message.text)
-			result = int(euro) * float(price_euro)
-			bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *₽*", parse_mode = "Markdown")
-		except Exception:
-			bot.send_message(message.chat.id, "Нужно вводить цифрами.")
-			break
-	if euro == 685468974538976564:
-		bot.register_next_step_handler(message, euro_rubl)
+    number = message.text
+    try:
+        number = int(message.text)
+        result = int(number) * float(price_euro)
+        bot.send_message(id, "*Результат -* " + str('{:.2f}'.format(result)) + " *₽*", parse_mode = "Markdown")
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
+        item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
+        item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
+        item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
+        item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+        markup.row(item1, item3)
+        markup.row(item2, item4)
+        markup.row(item5)
+        bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
+    except:
+        bot.send_message(id, "Нужно вводить значения цифрами.")
+        bot.register_next_step_handler(message, rubl_dollar)
 
 
 def rubl_euro(message):
-	rubl_two = 685468974538976564
-	while rubl_two == 685468974538976564:
-		try:
-			rubl_two = int(message.text)
-			result = int(rubl_two) / float(price_euro)
-			bot.send_message(message.chat.id, "*Результат -* " + str('{:.2f}'.format(result)) + " *EURO*", parse_mode = "Markdown")
-		except Exception:
-			bot.send_message(message.chat.id, "Нужно вводить цифрами.")
-			break
-	if rubl_two == 685468974538976564:
-		bot.register_next_step_handler(message, rubl_euro)
+    number = message.text
+    try:
+        number = int(number)
+        result = int(number) / float(price_euro)
+        bot.send_message(id, "*Результат -* " + str('{:.2f}'.format(result)) + " *EURO*", parse_mode = "Markdown")
 
-
-# ПРЕДЛОЖЕНИЯ И УЛУЧШЕНИЯ
+        markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+        item1 = types.KeyboardButton("💴 Рубли в 💵 Доллар")
+        item2 = types.KeyboardButton("💴 Рубли в 💶 Евро")
+        item3 = types.KeyboardButton("💵 Доллар в 💴 Рубли")
+        item4 = types.KeyboardButton("💶 Евро в 💴 Рубли")
+        item5 = types.KeyboardButton("🔙 Вернуться в Курс Валют")
+        markup.row(item1, item3)
+        markup.row(item2, item4)
+        markup.row(item5)
+        bot.send_message(id, "🚩 Выберите действие", reply_markup = markup)
+    except:
+        bot.send_message(id, "Нужно вводить значения цифрами.")
+        bot.register_next_step_handler(message, rubl_dollar)
 
 def up_bot(message):
 	global up_text
 	up_text = message.text
-
-
 	markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
 	item1 = types.KeyboardButton("Все верно ✅")
 	item2 = types.KeyboardButton("Хочу переписать 📄")
@@ -1546,95 +1732,83 @@ def up_bot(message):
 	markup.row(item1)
 	markup.row(item2)
 	markup.row(item3)
-
-	bot.send_message(message.chat.id, "⏳ Формирование...")
+	bot.send_message(id, "⏳ Формирование...")
 	sleep(1)
-	bot.send_message(message.chat.id, "⌛️ Формирование...")
+	bot.send_message(id, "⌛️ Формирование...")
 	sleep(1)
-	bot.send_message(message.chat.id, "Ваше сообщение сформировано. \n\n" + str(up_text), reply_markup = markup)
-
-
-# УГАДАЙ ЧИСЛО
+	bot.send_message(id, "Ваше сообщение сформировано. \n\n" + str(up_text), reply_markup = markup)
 
 def number(message):
-    global counter
-    global random_number
-    print("Загадано число - " + str(random_number))
+    global counter, random_number
     number_user = message.text
+    try:
+        number_user = int(number_user)
 
-    if number_user.isdigit():
-        if int(number_user) > 10:
-            bot.send_message(message.from_user.id, "Введите число в диапазоне от 1 до 10")
-            bot.register_next_step_handler(message, number)
-        elif int(number_user) < 1:
-            bot.send_message(message.from_user.id, "Введите число в диапазоне от 1 до 10")
+        if number_user < 1 or number_user > 10:
+            bot.send_message(id, "Введите число в диапазоне от 1 до 10")
             bot.register_next_step_handler(message, number)
         else:
-            if int(number_user) == int(random_number): 
-                id = message.from_user.id
-                name = message.from_user.first_name
-                cursor.execute(f"UPDATE users SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score = score + 1 WHERE id = {id}")
-                cursor.execute(f"UPDATE date SET score_number = score_number + 1 WHERE id = {id}")
-                db.commit()
-            
-            
+            if number_user == random_number:
+                users.update_one(
+                    {"id": id},
+                    {"$inc": {"score": 1}}
+                )
+
+                date.update_one(
+                    {"id": id},
+                    {"$inc": {"score": 1, "score_number": 1}}
+                )
+
                 sleep(0.5)
-                bot.send_message(message.chat.id, "Поздравляю, вы угадали число!")
+                bot.send_message(id, "Поздравляю, вы угадали число!")
                 sleep(0.5)
-                bot.send_message(message.chat.id, "Было загадано число - " + str(random_number))
+                bot.send_message(id, "Было загадано число - " + str(random_number))
+
                 markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-                item1 = types.KeyboardButton("Да)")
-                item2 = types.KeyboardButton("Нет)")
+                item1 = types.KeyboardButton("Да")
+                item2 = types.KeyboardButton("Нет")
                 markup.row(item1)
                 markup.row(item2)
-                bot.send_message(message.chat.id, "Хотите сыграть еще?)", reply_markup = markup)
-            
+                bot.send_message(id, "Хотите сыграть еще? 😊", reply_markup = markup)
             elif counter > 1:
                 counter -= 1
                 sleep(0.5)
-                bot.send_message(message.chat.id, "Неверно. Осталось попыток: " + str(counter))
+                bot.send_message(id, "Неверно. Осталось попыток: " + str(counter))
                 bot.register_next_step_handler(message, number)
                 return
             else:
                 sleep(0.5)
-                bot.send_message(message.chat.id, "Увы, но вы не угадали число( ☹️")
+                bot.send_message(id, "Увы, но вы не угадали число( ☹️")
                 sleep(0.5)
-                bot.send_message(message.chat.id, "Было загадано число - " + str(random_number))
+                bot.send_message(id, "Было загадано число - " + str(random_number))
+
                 markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-                item1 = types.KeyboardButton("Да)")
-                item2 = types.KeyboardButton("Нет)")
+                item1 = types.KeyboardButton("Да")
+                item2 = types.KeyboardButton("Нет")
                 markup.row(item1)
                 markup.row(item2)
-                bot.send_message(message.chat.id, "Хотите сыграть еще?)", reply_markup = markup)
-    else:
-        bot.send_message(message.from_user.id, "Введите пожалуйста цифру!")
+                bot.send_message(id, "Хотите сыграть еще? 😊", reply_markup = markup)
+    except:
+        bot.send_message(id, "Введите пожалуйста цифру!")
         bot.register_next_step_handler(message, number)
 
 
-# ВИКИПЕДИЯ
-
 def wiki(message):
 	global search
-
 	wikipedia.set_lang("RU")
 	text = message.text
-
 	search = wikipedia.search(text, results = 6)
-
 	if len(search) == 0:
-		bot.send_message(message.from_user.id, f"По запросу  *'{text}'*  ничего не найдено! ", parse_mode = "Markdown")
-
+		bot.send_message(id, f"По запросу  *'{text}'*  ничего не найдено! ", parse_mode = "Markdown")
 		markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
 		item1 = types.KeyboardButton("📖 Вики")
 		item2 = types.KeyboardButton("🔙 Вернуться в Функции")
 		markup.row(item1)
 		markup.row(item2)
-		bot.send_message(message.from_user.id, "Хотите попробовать найти ваш запрос еще раз?", reply_markup= markup)
-
+		bot.send_message(id, "Хотите попробовать найти ваш запрос еще раз?", reply_markup= markup)
 	else:
 		for index, result in enumerate(search, start = 0):
-			bot.send_message(message.from_user.id, f"{index}) {result}")
+			bot.send_message(id, f"{index}) {result}")
 
 		markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
 		item1 = types.KeyboardButton("0")
@@ -1646,59 +1820,32 @@ def wiki(message):
 		markup.row(item1, item2)
 		markup.row(item3, item4)
 		markup.row(item5, item6)
-
-		bot.send_message(message.from_user.id, "Выберите цифру запроса которого хотите узнать: ", reply_markup = markup)
+		bot.send_message(id, "Выберите цифру запроса которого хотите узнать: ", reply_markup = markup)
 		bot.register_next_step_handler(message, wiki_result)
-
 
 def wiki_result(message):
 	number = message.text
-
 	try:
 		number = int(message.text)
-		if number < 0:
-			bot.send_message(message.from_user.id, "Вы ввели неверный диапазон. \nВведите пожалуйста от 0 до 5")
-			bot.register_next_step_handler(message, wiki_result)
-		elif number > 5:
-			bot.send_message(message.from_user.id, "Вы ввели неверный диапазон. \nВведите пожалуйста от 0 до 5")
+		if number < 0 or number > 5:
+			bot.send_message(id, "Вы ввели неверный диапазон. \nВведите пожалуйста от 0 до 5")
 			bot.register_next_step_handler(message, wiki_result)
 		else:
 			try:
 				wikipedia.set_lang("RU")
 				text = wikipedia.summary(search[int(number)])
-				bot.send_message(message.from_user.id, str(text))
+				bot.send_message(id, str(text))
 			except:
-				bot.send_message(message.from_user.id, "Произошла ошибка, не удалось найти данный запрос!")
-
+				bot.send_message(id, "Произошла ошибка, не удалось найти данный запрос!")
 			sleep(2)
-
 			markup = types.ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True)
 			item1 = types.KeyboardButton("📖 Вики")
 			item2 = types.KeyboardButton("🔙 Вернуться в Функции")
 			markup.row(item1)
 			markup.row(item2)
-			bot.send_message(message.from_user.id, "Хотите еще найти что-нибудь?", reply_markup= markup)
-
-
+			bot.send_message(id, "Хотите еще найти что-нибудь?", reply_markup= markup)
 	except:
-		bot.send_message(message.from_user.id, "Введите цифру пожалуйста!")
+		bot.send_message(id, "Введите цифру пожалуйста!")
 		bot.register_next_step_handler(message, wiki_result)
 
-
-
-
-
-
-
-
-@server.route(f"/{BOT_TOKEN}", methods=["POST"])
-def redirect_message():
-    json_string = request.get_data().decode("utf-8")
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
-    return "!", 200
-
-if __name__ == "__main__":
-    bot.remove_webhook()
-    bot.set_webhook(url=APP_URL)
-    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+bot.infinity_polling()

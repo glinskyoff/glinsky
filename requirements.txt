@@ -1,7 +1,0 @@
-pyTelegramBotAPI
-flask
-wikipedia
-requests
-bs4
-qrcode
-psycopg2
